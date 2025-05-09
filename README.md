@@ -34,7 +34,7 @@ Shows some extra things for debugging/settings
 - Comment: Sends a message to the backend on any isuses or comments. Intended to let the maintainer know whether there are any mistakes (prices or boxes info) and correct them when possible.
 
 ## Customize it
-Because this wasn't a super serious project of mine, I didn't put too much effort into the structure of the site in order to try to keep it simple. At the bottom of `index.js` there is a list of boxes. To create a new box, the inputs are `new Box([Dimensions, large to small], which dimension has the opening, [NoPack price, Standard price, Fragile pack price, Custom pack price])`. `Box.NormalBox` is the same as above but assumel the smallest/last dimension is the one that opens   
+Because this wasn't a super serious project of mine, I didn't put too much effort into the structure of the site in order to try to keep it simple. At the bottom of `index.js` there is a list of boxes. To create a new box, the inputs are `new Box([Dimensions, large to small], which dimension has the opening, [NoPack price, Standard price, Fragile pack price, Custom pack price])`. `Box.NormalBox` is the same as above but assumes the smallest/last dimension is the one that opens   
 
 ## Run it
 Simply run `docker compose up` in the same directory, and it should start the server. By default it binds host port `5893` because I run multiple lightweight servers behind NGINX and the port doesn't collide with anything else I run.
