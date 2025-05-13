@@ -34,12 +34,31 @@ Shows some extra things for debugging/settings
 - Comment: Sends a message to the backend on any isuses or comments. Intended to let the maintainer know whether there are any mistakes (prices or boxes info) and correct them when possible.
 
 ## Customize it
-Because this wasn't a super serious project of mine, I didn't put too much effort into the structure of the site in order to try to keep it simple. At the bottom of `index.js` there is a list of boxes. To create a new box, the inputs are `new Box([Dimensions, large to small], which dimension has the opening, [NoPack price, Standard price, Fragile pack price, Custom pack price])`. `Box.NormalBox` is the same as above but assumes the smallest/last dimension is the one that opens   
+The box definitions are stored in `boxes.yml`. Each box entry has the following format:
+
+```yaml
+# For normal boxes (where the smallest dimension is the opening):
+- type: NormalBox
+  dimensions: [x, y, z]  # Dimensions in descending order
+  prices: [nopack_price, standard_price, fragile_price, custom_price]
+
+# For custom boxes (where you need to specify the opening dimension):
+- type: CustomBox
+  dimensions: [x, y, z]  # Dimensions in descending order
+  open_dim: 0  # Index of the opening dimension (0, 1, or 2)
+  prices: [nopack_price, standard_price, fragile_price, custom_price]
+```
+
+To add, remove, or modify boxes, simply edit the `boxes.yml` file and restart the application.
 
 ## Run it
 Simply run `docker compose up` in the same directory, and it should start the server. By default it binds host port `5893` because I run multiple lightweight servers behind NGINX and the port doesn't collide with anything else I run.
 
-Because docker mounts the current directory as a volume inside of the container, any edits to `index.js` show up instantly, and any comments sent to `comments.txt` can be read and deleted from the host system. To disable the comments, remove the `/comments` path from `main.py` and restart the container.
+Docker configuration notes:
+- The `boxes.yml` file is included in the Docker volume mount, so you can edit box configurations without rebuilding
+- Any comments sent to `comments.txt` can be read and deleted from the host system
+
+To disable the comments, remove the `/comments` path from `main.py` and restart the container.
 
 ## Comments
 For simplicity and speed most of the choices here were intentional.

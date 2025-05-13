@@ -612,54 +612,98 @@ class Box {
     }
 }
 
-function load_boxes() {
-    // Box(dimensions, open_dim, prices)
-    // I didn't feel like splitting this into a different file/web request because I'm the only one using it
-    const boxes = [
-        Box.NormalBox([6, 6, 6], [5.97, 8.82, 10.77, 12.49]),
-        Box.NormalBox([8, 8, 8], [7.97, 12.19, 15.91, 19.25]),
-        Box.NormalBox([10, 10, 10], [10.82, 16.49, 22.43, 26.47]),
-        Box.NormalBox([12, 10, 8], [8.49, 14.07, 19.97, 23.98]),
-        Box.NormalBox([12, 12, 6], [10.97, 16.51, 22.31, 26.27]),
-        Box.NormalBox([12, 12, 12], [13.97, 21.15, 28.59, 35.57]),
-        Box.NormalBox([14, 14, 14], [18.97, 27.93, 38.20, 46.20]),
-        Box.NormalBox([15, 12, 10], [14.75, 21.97, 29.62, 36.72]),
-        Box.NormalBox([16, 16, 4], [15.49, 21.19, 27.97, 32.57]),
-        Box.NormalBox([16, 16, 16], [18.49, 28.40, 40.78, 49.94]),
-        Box.NormalBox([19, 11, 8], [13.49, 19.53, 26.69, 31.45]),
-        Box.NormalBox([18, 18, 18], [21.97, 34.19, 50.02, 60.50]),
-        Box.NormalBox([20, 12, 12], [19.97, 29.07, 39.73, 47.96]),
-        Box.NormalBox([20, 20, 12], [21.79, 32.24, 45.92, 55.81]),
-        Box.NormalBox([20, 20, 20], [30.97, 44.71, 63.28, 75.25]),
-        Box.NormalBox([24, 16, 12], [19.97, 30.32, 43.80, 53.58]),
-        Box.NormalBox([24, 18, 6], [20.97, 29.93, 41.22, 49.84]),
-        Box.NormalBox([24, 18, 18], [23.79, 37.38, 55.80, 67.69]),
-        Box.NormalBox([24, 24, 16], [27.49, 42.11, 62.40, 75.30]),
-        Box.NormalBox([24, 24, 24], [42.82, 61.76, 86.72, 103.19]),
-        Box.NormalBox([26, 20, 20], [43.65, 60.13, 81.59, 96.19]),
-        Box.NormalBox([30, 24, 6], [37.49, 47.71, 63.21, 77.19]),
-        Box.NormalBox([30, 19, 16], [22.49, 36.40, 55.66, 68.03]),
-        Box.NormalBox([30, 30, 16], [32.49, 51.84, 78.36, 95.67]),
-        Box.NormalBox([36, 16, 16], [25.29, 39.98, 60.94, 77.27]),
-        new Box([36, 20, 20], 0, [34.59, 53.95, 80.21, 97.39]),
-        Box.NormalBox([36, 24, 10], [32.49, 46.81, 68.43, 82.11]),
-        new Box([36, 29, 5.5], 1, [45.49, 57.82, 78.60, 91.88]),
-        new Box([36, 30, 8], 1, [43.49, 57.84, 81.19, 95.79]),
-        new Box([44, 35, 5.5], 0, [41.49, 55.81, 83.50, 100.51]),
-        new Box([48, 6, 6], 0, [19.97, 27.45, 36.29, 44.44]),
-        new Box([48, 10, 10], 0, [22.79, 33.44, 49.44, 59.90]),
-        new Box([48, 15, 15], 0, [41.50, 58.44, 82.35, 98.39]),
-        new Box([50, 20, 10], 0, [56.97, 73.41, 97.70, 113.96]),
-        new Box([56, 32, 10], 0, [81.97, 102.37, 139.64, 163.26]),
-        new Box([52, 30, 9], 0, [100, 200, 300, 400]),
-        new Box([42, 32, 6], 0, [100, 200, 300, 400]),
+// Load boxes from API
+async function load_boxes() {
+    try {
+        const response = await fetch('/api/boxes')
+            .catch(networkError => {
+                console.error("Network error:", networkError);
+                throw new Error(`Network error: ${networkError.message}. Make sure the server is running.`);
+            });
 
-    ]
-    const testBox = new Box([6, 6, 6], 2, [5.97, 8.82, 10.77, 12.49])
-    state.availableBoxes = boxes
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`Server responded with status ${response.status}:`, errorText);
+            throw new Error(`Server error: ${response.status} - ${errorText}`);
+        }
+
+        const data = await response.json();
+        const boxes = [];
+
+        if (data.boxes && Array.isArray(data.boxes)) {
+            data.boxes.forEach(boxData => {
+                let box;
+
+                if (boxData.type === 'NormalBox') {
+                    box = Box.NormalBox(boxData.dimensions, boxData.prices);
+                } else if (boxData.type === 'CustomBox') {
+                    box = new Box(boxData.dimensions, boxData.open_dim, boxData.prices);
+                } else {
+                    console.warn(`Skipping box with unknown type: ${boxData.type}`);
+                    return; // Skip unknown box types
+                }
+
+                boxes.push(box);
+            });
+        } else {
+            console.error("Invalid data format received from server");
+            throw new Error("Invalid box data format from server");
+        }
+
+        return boxes;
+    } catch (error) {
+        console.error("Error loading boxes:", error);
+        throw error;
+    }
 }
 
 
-gen_html()
-load_boxes()
-gen_chart()
+// Initialize the app
+async function initialize() {
+    gen_html();
+
+    try {
+        state.availableBoxes = await load_boxes();
+        gen_chart();
+    } catch (error) {
+        console.error("Error loading boxes:", error);
+
+        // Create a user-friendly error message
+        const container = document.getElementById("container");
+
+        // Clear any existing content
+        while (container.firstChild) {
+            container.removeChild(container.firstChild);
+        }
+
+        const errorDiv = document.createElement("div");
+        errorDiv.style.padding = "20px";
+        errorDiv.style.margin = "20px";
+        errorDiv.style.backgroundColor = "#ffdddd";
+        errorDiv.style.border = "1px solid #ff0000";
+        errorDiv.style.borderRadius = "5px";
+
+        const errorTitle = document.createElement("h2");
+        errorTitle.textContent = "Error Loading Boxes";
+        errorTitle.style.color = "#cc0000";
+        errorDiv.appendChild(errorTitle);
+
+        const errorMessage = document.createElement("p");
+        errorMessage.textContent = error.message;
+        errorDiv.appendChild(errorMessage);
+
+        const errorHelp = document.createElement("p");
+        errorHelp.innerHTML = `<b>Troubleshooting tips:</b>
+        <ul>
+            <li>Check that the FastAPI server is running</li>
+            <li>Verify that the boxes.yml file exists and is properly formatted</li>
+            <li>Check the server logs for more details</li>
+        </ul>`;
+        errorDiv.appendChild(errorHelp);
+
+        container.appendChild(errorDiv);
+    }
+}
+
+// Execute initialization immediately - no need to wait for DOMContentLoaded as script is already deferred
+initialize();
