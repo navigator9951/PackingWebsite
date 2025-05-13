@@ -14,7 +14,18 @@
         </style>
     </head>
     <body>
+        <div id="header">
+            <script>
+                // Extract store number from URL and show price editor link
+                const pathParts = window.location.pathname.split('/');
+                const storeId = pathParts[1];
+
+                if (storeId && /^\d+$/.test(storeId)) {
+                    document.write(`<a href="/${storeId}/price_editor" style="display: block; margin: 10px 0; padding: 5px; background-color: #f0f0f0; width: fit-content; text-decoration: none; color: #333; border: 1px solid #ccc; border-radius: 4px;">Open Price Editor for Store ${storeId}</a>`);
+                }
+            </script>
+        </div>
         <div id="container"></div>
-        <script src="index.js" async defer></script>
+        <script src="/index.js" async defer></script>
     </body>
 </html>
