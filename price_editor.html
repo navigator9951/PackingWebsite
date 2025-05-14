@@ -89,6 +89,25 @@
             background-color: #cce5ff;
             color: #004085;
         }
+        
+        /* Remove up/down arrows (spinners) from number inputs */
+        input[type="number"] {
+            -webkit-appearance: textfield;
+            -moz-appearance: textfield;
+            appearance: textfield;
+        }
+        
+        /* Chrome, Safari, Edge, Opera */
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        
+        /* Firefox */
+        input[type="number"] {
+            -moz-appearance: textfield;
+        }
     </style>
 </head>
 <body>
@@ -307,7 +326,9 @@
                     type: 'number',
                     step: '0.01',
                     min: '0',
-                    style: 'width: 100%; box-sizing: border-box;'
+                    placeholder: 'Enter price',
+                    pattern: '[0-9]+(\.[0-9]{1,2})?', // Restrict to valid price format
+                    style: 'width: 100%; box-sizing: border-box; text-align: right; padding-right: 5px;'
                 });
                 input.val(value);
                 cell.append(input);
@@ -316,14 +337,27 @@
                 
                 // Handle input blur (save value)
                 input.on('blur', function() {
-                    const newValue = parseFloat($(this).val());
-                    cell.text(newValue.toFixed(2));
+                    const inputValue = $(this).val();
+                    const newValue = parseFloat(inputValue);
+                    const originalValue = parseFloat(value);
                     
-                    // Track the change
-                    if (!changedData[row.model]) {
-                        changedData[row.model] = {};
-                        changeCount++;
+                    // Check if value is valid (must be a valid number)
+                    if (isNaN(newValue) || inputValue.trim() === '' || /[^0-9.\-]/.test(inputValue)) {
+                        // Simply revert to the original value without marking as changed
+                        cell.text(value); // Use the original string value to maintain exact formatting
+                        showStatus('Invalid input', 'error');
+                        return;
                     }
+                    
+                    // Check if the value actually changed
+                    if (newValue === originalValue) {
+                        // No actual change, just revert to original value
+                        cell.text(value); // Use the original string value to maintain exact formatting
+                        return;
+                    }
+                    
+                    // Valid number that has changed
+                    cell.text(newValue.toFixed(2));
                     
                     // Determine which price field to update
                     let priceIndex;
@@ -332,9 +366,16 @@
                         case 'standard': priceIndex = 1; break;
                         case 'fragile': priceIndex = 2; break;
                         case 'custom': priceIndex = 3; break;
+                        default: return; // Exit if column not recognized
                     }
                     
-                    if (priceIndex !== undefined) {
+                    // Track the change only if it's a new model or the value actually changed
+                    if (!changedData[row.model]) {
+                        changedData[row.model] = {};
+                        changedData[row.model][priceIndex] = newValue;
+                        changeCount++;
+                    } else if (changedData[row.model][priceIndex] !== newValue) {
+                        // Update existing change
                         changedData[row.model][priceIndex] = newValue;
                     }
                     
@@ -345,6 +386,20 @@
                 input.on('keypress', function(e) {
                     if (e.which === 13) {
                         input.blur();
+                    }
+                });
+                
+                // Handle input events to validate values and prevent NaN
+                input.on('input', function() {
+                    const inputValue = $(this).val();
+                });
+                
+                // Validate input on change
+                input.on('change', function() {
+                    const inputValue = $(this).val();
+                    // If empty or invalid, do not modify the input - blur handler will handle reverting
+                    if (inputValue === '' || isNaN(parseFloat(inputValue)) || /[^0-9.\-]/.test(inputValue)) {
+                        // Don't change the input - let blur handle reverting
                     }
                 });
             });
