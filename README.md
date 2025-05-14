@@ -53,6 +53,7 @@ The application supports multiple stores, each with its own box inventory. Box d
 Each store file has the following format:
 
 ```yaml
+pricing-mode: standard # Choose between 'standard' or 'itemized' pricing mode
 editable: true # Whether box prices can be edited through the web interface
 
 boxes:
@@ -61,8 +62,23 @@ boxes:
     supplier: ABC # Optional supplier information
     model: "06C-UPS" # Model identifier (also optional, but at some point we'll probably REALLY want to use this!)
     dimensions: [x, y, z] # Dimensions - the code assumes z is the opening side for "normal" boxes
-    prices: [nopack_price, standard_price, fragile_price, custom_price] # at some point we may want to track materials + service seperately.  For now we'll stay compatible with the existing structure
-    location: "A1" # Optional location information.  Any arbitrary string to help the user find the box.  At some point we'll make this support coords which we can drive a floorplan map with,
+    prices: [nopack_price, standard_price, fragile_price, custom_price] # Standard pricing format
+    location: "A1" # Optional location information.  Any arbitrary string to help the user find the box.
+
+  # For normal boxes with itemized pricing:
+  - type: NormalBox
+    supplier: ABC
+    model: "08C-UPS"
+    dimensions: [x, y, z]
+    itemized-prices: # Itemized pricing format
+      box-price: 4.24 # Base price of the box
+      standard-materials: 1.0 # Material cost for standard packing
+      standard-services: 2.0 # Service cost for standard packing
+      fragile-materials: 3.0 # Material cost for fragile packing
+      fragile-services: 2.0 # Service cost for fragile packing
+      custom-materials: 4.0 # Material cost for custom packing
+      custom-services: 3.0 # Service cost for custom packing
+    location: "A2"
 
   # For custom boxes (where you need to specify the opening dimension):
   - type: CustomBox
@@ -70,7 +86,7 @@ boxes:
     model: "CustomBox-1"
     dimensions: [x, y, z] # Dimensions in descending order
     open_dim: 0 # Index of the opening dimension (0, 1, or 2)
-    prices: [nopack_price, standard_price, fragile_price, custom_price]
+    prices: [nopack_price, standard_price, fragile_price, custom_price] # Can also use itemized-prices format
     location: "B2"
 ```
 
@@ -87,13 +103,45 @@ Docker configuration notes:
 
 To disable the comments, remove the `/comments` path from `main.py` and restart the container.
 
+## Pricing Modes
+
+The application supports two pricing modes:
+
+1. **Standard Pricing Mode**: Uses a simple array of 4 values for box prices at different packing levels:
+
+   - `[nopack_price, standard_price, fragile_price, custom_price]`
+
+2. **Itemized Pricing Mode**: Breaks down each price into box cost, materials, and services for more detailed pricing:
+   - `box-price`: Base cost of the box
+   - `standard-materials`, `standard-services`: Materials and service costs for standard packing
+   - `fragile-materials`, `fragile-services`: Materials and service costs for fragile packing
+   - `custom-materials`, `custom-services`: Materials and service costs for custom packing
+
+To specify the pricing mode for a store, add the `pricing-mode` field at the top of the store YAML file:
+
+```yaml
+pricing-mode: standard # or 'itemized'
+```
+
+## Price Editor
+
+Each store has a price editor accessed via `/{store_id}/price_editor`. The price editor interface will adapt based on the pricing mode:
+
+- **Standard Mode**: Shows a simple table with box price, standard, fragile, and custom prices
+- **Itemized Mode**: Shows a more detailed table breaking down each price into box price, materials, and services
+
+The price editor will only allow updates if the store has `editable: true` set in its YAML file.
+
 ## URL Routes and Endpoints
 
 - `/{store_id}` - Access the main packing calculator for a specific store (e.g., `/1` for store 1)
 - `/{store_id}/price_editor` - Access the price editor for a specific store
 - `/api/store/{store_id}/boxes` - API endpoint to get all boxes for a store
 - `/api/store/{store_id}/boxes_with_sections` - API endpoint to get boxes organized by sections
+- `/api/store/{store_id}/pricing_mode` - Get the current pricing mode for a store
 - `/api/store/{store_id}/is_editable` - Check if a store's prices can be edited
+- `/api/store/{store_id}/update_prices` - Update prices in standard pricing mode
+- `/api/store/{store_id}/update_itemized_prices` - Update prices in itemized pricing mode
 
 ## Comments
 

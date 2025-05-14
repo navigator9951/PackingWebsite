@@ -12,8 +12,25 @@ app = FastAPI()
 # Define static asset routes first to prevent conflicts with dynamic routes
 @app.get("/index.js", response_class=HTMLResponse)
 async def base_script():
+    # Add cache-busting headers
+    headers = {
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0"
+    }
     with open("index.js", "r") as f:
-        return HTMLResponse(f.read(), media_type="text/javascript")
+        return HTMLResponse(f.read(), media_type="text/javascript", headers=headers)
+
+@app.get("/pricing.js", response_class=HTMLResponse)
+async def pricing_script():
+    # Add cache-busting headers
+    headers = {
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0"
+    }
+    with open("pricing.js", "r") as f:
+        return HTMLResponse(f.read(), media_type="text/javascript", headers=headers)
 
 @app.get("/favicon.ico", response_class=FileResponse)
 async def favicon():
@@ -43,8 +60,21 @@ async def price_editor(store_id: str = Path(..., regex=r"^\d{1,4}$")):
 
     # Replace the title to include the store number
     html_content = html_content.replace("Box Price Editor - Store 2", f"Box Price Editor - Store {store_id}")
+    
+    # Add cache-busting headers with the response
+    headers = {
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0"
+    }
 
-    return html_content
+    return HTMLResponse(content=html_content, headers=headers)
+
+@app.get("/api/store/{store_id}/pricing_mode", response_class=JSONResponse)
+async def get_pricing_mode(store_id: str = Path(..., regex=r"^\d{1,4}$")):
+    data = load_store_yaml(store_id)
+    pricing_mode = data.get("pricing-mode", "standard")
+    return {"mode": pricing_mode}
 
 @app.get("/api/store/{store_id}/boxes", response_class=JSONResponse)
 async def get_boxes(store_id: str = Path(..., regex=r"^\d{1,4}$")):
@@ -68,14 +98,39 @@ async def get_boxes(store_id: str = Path(..., regex=r"^\d{1,4}$")):
         print(f"Error: {error_msg}")
         raise HTTPException(status_code=500, detail=error_msg)
 
+    # Determine pricing mode
+    pricing_mode = boxes_data.get("pricing-mode", "standard")
+
     # Validate each box entry
     for i, box in enumerate(boxes_data["boxes"]):
         if "type" not in box:
             raise HTTPException(status_code=500, detail=f"Box at index {i} missing 'type' field")
         if "dimensions" not in box or not isinstance(box["dimensions"], list) or len(box["dimensions"]) != 3:
             raise HTTPException(status_code=500, detail=f"Box at index {i} has invalid 'dimensions' (must be list of 3 numbers)")
-        if "prices" not in box or not isinstance(box["prices"], list) or len(box["prices"]) != 4:
-            raise HTTPException(status_code=500, detail=f"Box at index {i} has invalid 'prices' (must be list of 4 numbers)")
+        
+        # Validate pricing data based on pricing mode
+        if pricing_mode == "standard":
+            if "prices" not in box or not isinstance(box["prices"], list) or len(box["prices"]) != 4:
+                raise HTTPException(status_code=500, detail=f"Box at index {i} has invalid 'prices' (must be list of 4 numbers)")
+            
+            if "itemized-prices" in box:
+                raise HTTPException(status_code=500, detail=f"Box at index {i} has 'itemized-prices' but store is in standard pricing mode")
+        else:  # itemized pricing mode
+            if "itemized-prices" not in box or not isinstance(box["itemized-prices"], dict):
+                raise HTTPException(status_code=500, detail=f"Box at index {i} missing 'itemized-prices' (must be an object)")
+            
+            # Validate required itemized pricing fields
+            required_fields = ["box-price", "standard-materials", "standard-services", 
+                              "fragile-materials", "fragile-services", 
+                              "custom-materials", "custom-services"]
+            
+            for field in required_fields:
+                if field not in box["itemized-prices"]:
+                    raise HTTPException(status_code=500, detail=f"Box at index {i} missing required field '{field}' in itemized-prices")
+            
+            if "prices" in box:
+                raise HTTPException(status_code=500, detail=f"Box at index {i} has 'prices' but store is in itemized pricing mode")
+        
         if box["type"] == "CustomBox" and "open_dim" not in box:
             raise HTTPException(status_code=500, detail=f"Box at index {i} is CustomBox but missing 'open_dim' field")
 
@@ -131,11 +186,18 @@ def save_store_yaml(store_id: str, data: dict):
     try:
         # Custom YAML writing to maintain the desired format
         with open(yaml_file, "w") as f:
+            # Write pricing mode if present
+            if "pricing-mode" in data:
+                f.write(f"pricing-mode: {data['pricing-mode']}\n")
+            
             # Write editable flag at the top level
             editable = data.get("editable", False)
             f.write(f"editable: {str(editable).lower()}\n")
 
             f.write("boxes:\n")
+
+            # Determine pricing mode
+            pricing_mode = data.get("pricing-mode", "standard")
 
             # Write each box in a nice format
             for box in data["boxes"]:
@@ -174,14 +236,27 @@ def save_store_yaml(store_id: str, data: dict):
                     alt_depths_str = str(alt_depths).replace(" ", "")
                     f.write(f"    alternate_depths: {alt_depths_str}\n")
 
-                # Safely format prices with square brackets and commas, no spaces
-                if isinstance(box['prices'], list) and len(box['prices']) == 4:
-                    # Validate prices are numeric and in reasonable range
-                    prices = [float(p) if isinstance(p, (int, float)) and 0 <= p <= 10000 else 0 for p in box['prices']]
-                    prices_str = str(prices).replace(" ", "")
-                    f.write(f"    prices: {prices_str}\n")
-                else:
-                    f.write(f"    prices: [0.0,0.0,0.0,0.0]\n")
+                # Write prices or itemized-prices based on pricing mode
+                if pricing_mode == "standard" and "prices" in box:
+                    # Safely format prices with square brackets and commas, no spaces
+                    if isinstance(box['prices'], list) and len(box['prices']) == 4:
+                        # Validate prices are numeric and in reasonable range
+                        prices = [float(p) if isinstance(p, (int, float)) and 0 <= p <= 10000 else 0 for p in box['prices']]
+                        prices_str = str(prices).replace(" ", "")
+                        f.write(f"    prices: {prices_str}\n")
+                    else:
+                        f.write(f"    prices: [0.0,0.0,0.0,0.0]\n")
+                elif pricing_mode == "itemized" and "itemized-prices" in box:
+                    # Write itemized prices
+                    ip = box["itemized-prices"]
+                    f.write(f"    itemized-prices:\n")
+                    f.write(f"      box-price: {ip.get('box-price', 0)}\n")
+                    f.write(f"      standard-materials: {ip.get('standard-materials', 0)}\n")
+                    f.write(f"      standard-services: {ip.get('standard-services', 0)}\n")
+                    f.write(f"      fragile-materials: {ip.get('fragile-materials', 0)}\n")
+                    f.write(f"      fragile-services: {ip.get('fragile-services', 0)}\n")
+                    f.write(f"      custom-materials: {ip.get('custom-materials', 0)}\n")
+                    f.write(f"      custom-services: {ip.get('custom-services', 0)}\n")
 
                 # Add location if present
                 if store_id == "1" and "location" not in box:
@@ -206,52 +281,113 @@ def save_store_yaml(store_id: str, data: dict):
         print(f"Error saving YAML: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error saving YAML: {str(e)}")
 
-# Define box sections based on model patterns
-def get_box_section(model: str):
-    if any(model.endswith(suffix) for suffix in ["C-UPS", "C", "Cube"]):
-        return "CUBE BOXES"
-    elif any(x in model for x in ["X 4", "X 3", "X 6", "J-11", "J-14", "J-15", "J-16", "SHIRTB"]):
-        return "FLAT & SMALL BOXES"
-    elif any(x in model for x in ["J-20", "WREATH", "ST-6", "MIR-3", "MIR-8"]):
-        return "MEDIUM BOXES"
-    elif any(x in model for x in ["J-64", "SUITCASE", "VCR", "24 X 18 X 18"]):
-        return "LARGE BOXES"
-    else:
-        return "SPECIALTY BOXES"
+# Define box sections based on model patterns or box type
+def get_box_section(model: str, box_type: str = None):
+    # First try to categorize based on model if it exists
+    if model and model.strip():
+        if any(model.endswith(suffix) for suffix in ["C-UPS", "C", "Cube"]):
+            return "CUBE"
+        elif any(x in model for x in ["X 4", "X 3", "X 6", "J-11", "J-14", "J-15", "J-16", "SHIRTB"]):
+            return "FLAT & SMALL"
+        elif any(x in model for x in ["J-20", "WREATH", "ST-6", "MIR-3", "MIR-8"]):
+            return "MEDIUM"
+        elif any(x in model for x in ["J-64", "SUITCASE", "VCR", "24 X 18 X 18"]):
+            return "LARGE"
+        else:
+            return "SPECIALTY"
+            
+    # If no model or couldn't categorize, use box type
+    if box_type:
+        if box_type == "NormalBox":
+            return "NORMAL"
+        elif box_type == "CustomBox":
+            return "CUSTOM"
+            
+    # Fallback
+    return "OTHER"
 
 # Get boxes formatted for the editor with sections
 @app.get("/api/store/{store_id}/boxes_with_sections", response_class=JSONResponse)
 async def get_boxes_with_sections(store_id: str = Path(..., regex=r"^\d{1,4}$")):
     data = load_store_yaml(store_id)
     result = []
+    
+    # Determine pricing mode
+    pricing_mode = data.get("pricing-mode", "standard")
 
     for box in data["boxes"]:
         # Handle legacy format (missing model and location)
         model = box.get("model", f"Unknown-{len(box['dimensions'])}-{box['dimensions'][0]}-{box['dimensions'][1]}-{box['dimensions'][2]}")
 
-        # Use a placeholder section for boxes without model
-        if "model" in box:
-            section = get_box_section(model)
-        else:
-            section = "UNKNOWN BOXES"
+        # Get section based on model or box type
+        box_type = box.get("type")
+        section = get_box_section(model, box_type)
+        
+        # Only print debug info for store1
+        if store_id == "1":
+            print(f"Store1 - Model: {model}, Type: {box_type}, Section: {section}")
 
-        dimensions_str = " × ".join(str(d) for d in box["dimensions"])
+        dimensions_str = "x".join(str(d) for d in box["dimensions"])
+        
+        # Process based on pricing mode
+        if pricing_mode == "standard":
+            prices = box.get("prices", [0, 0, 0, 0])
+            box_data = {
+                "section": section,
+                "model": model,
+                "dimensions": dimensions_str,
+                "box_price": prices[0],
+                "standard": prices[1],
+                "fragile": prices[2],
+                "custom": prices[3],
+                "location": box.get("location", "???"),
+                "pricing_mode": "standard"
+            }
+        else:  # itemized pricing mode
+            ip = box.get("itemized-prices", {})
+            
+            # Calculate totals for each level
+            box_price = ip.get("box-price", 0)
+            standard_total = box_price + ip.get("standard-materials", 0) + ip.get("standard-services", 0)
+            fragile_total = box_price + ip.get("fragile-materials", 0) + ip.get("fragile-services", 0) 
+            custom_total = box_price + ip.get("custom-materials", 0) + ip.get("custom-services", 0)
+            
+            box_data = {
+                "section": section,
+                "model": model,
+                "dimensions": dimensions_str,
+                "box_price": box_price,
+                "standard_materials": ip.get("standard-materials", 0),
+                "standard_services": ip.get("standard-services", 0),
+                "standard_total": standard_total,
+                "fragile_materials": ip.get("fragile-materials", 0),
+                "fragile_services": ip.get("fragile-services", 0),
+                "fragile_total": fragile_total,
+                "custom_materials": ip.get("custom-materials", 0),
+                "custom_services": ip.get("custom-services", 0),
+                "custom_total": custom_total,
+                "location": box.get("location", "???"),
+                "pricing_mode": "itemized"
+            }
 
-        result.append({
-            "section": section,
-            "model": model,
-            "dimensions": dimensions_str,
-            "box_price": box["prices"][0],
-            "standard": box["prices"][1],
-            "fragile": box["prices"][2],
-            "custom": box["prices"][3],
-            "location": box.get("location", "???")
-        })
+        result.append(box_data)
 
     # Sort by section and then by model
     result.sort(key=lambda x: (x["section"], x["model"]))
 
     return result
+
+# Get all boxes at once (bulk endpoint)
+@app.get("/api/store/{store_id}/all_boxes", response_class=JSONResponse)
+async def get_all_boxes(store_id: str = Path(..., regex=r"^\d{1,4}$")):
+    data = load_store_yaml(store_id)
+    
+    # Add model field to all boxes that don't have it
+    for box in data["boxes"]:
+        if "model" not in box:
+            box["model"] = f"Unknown-{len(box['dimensions'])}-{box['dimensions'][0]}-{box['dimensions'][1]}-{box['dimensions'][2]}"
+    
+    return {"pricing_mode": data.get("pricing-mode", "standard"), "boxes": data["boxes"]}
 
 # Get a single box by model
 @app.get("/api/store/{store_id}/box/{model}", response_class=JSONResponse)
@@ -260,6 +396,7 @@ async def get_box_by_model(
     model: str = Path(...)):
 
     data = load_store_yaml(store_id)
+    pricing_mode = data.get("pricing-mode", "standard")
 
     for box in data["boxes"]:
         # Handle legacy format and compare with the provided model
@@ -273,7 +410,10 @@ async def get_box_by_model(
                 box["supplier"] = "Unknown"
             if "location" not in box:
                 box["location"] = "???"
-
+                
+            # Add pricing mode to the response
+            box["pricing_mode"] = pricing_mode
+            
             return box
 
     raise HTTPException(status_code=404, detail=f"Box with model {model} not found")
@@ -283,7 +423,12 @@ class PriceUpdateRequest(BaseModel):
     changes: Dict[str, Dict[str, float]]
     csrf_token: str
 
-# Update prices for multiple boxes
+# Define the request model for itemized price updates
+class ItemizedPriceUpdateRequest(BaseModel):
+    changes: Dict[str, Dict[str, float]]
+    csrf_token: str
+
+# Update prices for multiple boxes (standard pricing mode)
 @app.post("/api/store/{store_id}/update_prices", response_class=JSONResponse)
 async def update_prices(
     store_id: str = Path(..., regex=r"^\d{1,4}$"),
@@ -298,6 +443,11 @@ async def update_prices(
         raise HTTPException(status_code=403, detail="Invalid CSRF token")
 
     data = load_store_yaml(store_id)
+    
+    # Check pricing mode
+    pricing_mode = data.get("pricing-mode", "standard")
+    if pricing_mode != "standard":
+        raise HTTPException(status_code=400, detail="This endpoint is for standard pricing mode only. Use /update_itemized_prices for itemized pricing.")
 
     # Check if the store is editable
     if not data.get("editable", False):
@@ -331,6 +481,72 @@ async def update_prices(
     save_store_yaml(store_id, data)
 
     return {"message": f"Updated {updated_count} prices successfully"}
+
+# Update itemized prices for multiple boxes (itemized pricing mode)
+@app.post("/api/store/{store_id}/update_itemized_prices", response_class=JSONResponse)
+async def update_itemized_prices(
+    store_id: str = Path(..., regex=r"^\d{1,4}$"),
+    update_data: ItemizedPriceUpdateRequest = Body(...)):
+
+    # Extract data from the request
+    changes = update_data.changes
+
+    # Validate CSRF token - normally you would check against a server-stored token
+    # This is a simple check to ensure the token is present
+    if not update_data.csrf_token or len(update_data.csrf_token) < 10:
+        raise HTTPException(status_code=403, detail="Invalid CSRF token")
+
+    data = load_store_yaml(store_id)
+    
+    # Check pricing mode
+    pricing_mode = data.get("pricing-mode", "standard")
+    if pricing_mode != "itemized":
+        raise HTTPException(status_code=400, detail="This endpoint is for itemized pricing mode only. Use /update_prices for standard pricing.")
+
+    # Check if the store is editable
+    if not data.get("editable", False):
+        raise HTTPException(status_code=403, detail="This store is not editable. Set 'editable: true' in the store YAML file to enable editing.")
+
+    updated_count = 0
+
+    # Update prices for each box in the changes dict
+    for box in data["boxes"]:
+        # Get the actual model or generate a default one for legacy boxes
+        box_model = box.get("model", f"Unknown-{len(box['dimensions'])}-{box['dimensions'][0]}-{box['dimensions'][1]}-{box['dimensions'][2]}")
+
+        if box_model in changes:
+            price_changes = changes[box_model]
+            
+            # Ensure itemized-prices exists
+            if "itemized-prices" not in box:
+                box["itemized-prices"] = {
+                    "box-price": 0,
+                    "standard-materials": 0,
+                    "standard-services": 0,
+                    "fragile-materials": 0,
+                    "fragile-services": 0,
+                    "custom-materials": 0,
+                    "custom-services": 0
+                }
+
+            # Apply changes to appropriate fields
+            for field, new_price in price_changes.items():
+                # Validate price - must be a positive number within a reasonable range
+                if isinstance(new_price, (int, float)) and 0 <= new_price <= 10000:
+                    box["itemized-prices"][field] = new_price
+                    updated_count += 1
+                else:
+                    raise HTTPException(status_code=400, detail=f"Invalid price value: {new_price}. Prices must be between 0 and 10000.")
+
+            # If this is a legacy box and we're updating it, add the model field
+            # so we can reference it again in the future
+            if "model" not in box:
+                box["model"] = box_model
+
+    # Save the updated YAML file while preserving the editable flag
+    save_store_yaml(store_id, data)
+
+    return {"message": f"Updated {updated_count} itemized prices successfully"}
 
 class Comment(BaseModel):
     text: str
