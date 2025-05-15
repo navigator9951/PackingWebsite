@@ -434,7 +434,7 @@ class Box {
     }
 
     static NormalBox(dimensions, prices) {
-        // Assumes the last dimension is the open dimension (should be the smallest one)
+        // Assumes the last dimension is the open dimension
         return new Box(dimensions, 2, prices)
     }
 
@@ -615,7 +615,16 @@ class Box {
 // Load boxes from API
 async function load_boxes() {
     try {
-        const response = await fetch('/api/boxes')
+        // Extract store ID from URL path
+        const pathParts = window.location.pathname.split('/');
+        const storeId = pathParts[1] || '1'; // Default to store1 if not specified
+
+        // Make sure storeId is a number between 1-9999
+        if (!/^\d{1,4}$/.test(storeId)) {
+            throw new Error(`Invalid store ID: ${storeId}. Must be a number between 1-9999.`);
+        }
+
+        const response = await fetch(`/api/store/${storeId}/boxes`)
             .catch(networkError => {
                 console.error("Network error:", networkError);
                 throw new Error(`Network error: ${networkError.message}. Make sure the server is running.`);
@@ -693,11 +702,16 @@ async function initialize() {
         errorDiv.appendChild(errorMessage);
 
         const errorHelp = document.createElement("p");
+        // Extract store ID from URL path
+        const pathParts = window.location.pathname.split('/');
+        const storeId = pathParts[1] || '1'; // Default to store1 if not specified
+
         errorHelp.innerHTML = `<b>Troubleshooting tips:</b>
         <ul>
             <li>Check that the FastAPI server is running</li>
-            <li>Verify that the boxes.yml file exists and is properly formatted</li>
+            <li>Verify that the store${storeId}.yml file exists and is properly formatted</li>
             <li>Check the server logs for more details</li>
+            <li>Make sure you're accessing a valid store ID in the URL path (e.g., /1, /2, etc.)</li>
         </ul>`;
         errorDiv.appendChild(errorHelp);
 

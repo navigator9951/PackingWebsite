@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Box Price Editor</title>
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.11.5/css/jquery.dataTables.min.css">
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/buttons/2.2.2/css/buttons.dataTables.min.css">
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/select/1.3.4/css/select.dataTables.min.css">
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/responsive/2.2.9/css/responsive.dataTables.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .container {
+            width: 95%;
+            margin: 0 auto;
+        }
+        .header {
+            margin-bottom: 20px;
+        }
+        .dataTables_wrapper {
+            margin-top: 20px;
+        }
+        .editable {
+            background-color: #f8f9fa;
+            cursor: pointer;
+        }
+        .editable:hover {
+            background-color: #e9ecef;
+        }
+        .section-header {
+            background-color: #343a40;
+            color: white;
+            font-weight: bold;
+            padding: 5px 10px;
+        }
+        .blue-row {
+            background-color: #cfe2f3 !important;
+        }
+        .yellow-row {
+            background-color: #fff2cc !important;
+        }
+        .green-row {
+            background-color: #d9ead3 !important;
+        }
+        .pink-row {
+            background-color: #f4cccc !important;
+        }
+        .orange-row {
+            background-color: #fce5cd !important;
+        }
+        .changes-pending {
+            background-color: #ffe0e0;
+        }
+        .buttons-container {
+            margin: 20px 0;
+        }
+        .save-button {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .save-button:hover {
+            background-color: #218838;
+        }
+        .save-button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .status-message {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .loading {
+            background-color: #cce5ff;
+            color: #004085;
+        }
+        
+        /* Remove up/down arrows (spinners) from number inputs */
+        input[type="number"] {
+            -webkit-appearance: textfield;
+            -moz-appearance: textfield;
+            appearance: textfield;
+        }
+        
+        /* Chrome, Safari, Edge, Opera */
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        
+        /* Firefox */
+        input[type="number"] {
+            -moz-appearance: textfield;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 id="storeHeader">Box Price Editor</h1>
+            <p id="editInstructions">Click on any price cell to edit. Your changes will be tracked and can be saved to the YAML file.</p>
+            <div id="readOnlyMessage" style="display: none; padding: 10px; background-color: #ffe0e0; margin-bottom: 15px; border-radius: 4px;">
+                <strong>Read-only Mode:</strong> This store is not editable. To enable editing, set 'editable: true' in the store's YAML file.
+            </div>
+            <div id="backLink"></div>
+        </div>
+        
+        <div class="buttons-container">
+            <button id="saveChanges" class="save-button" disabled>Save Changes</button>
+            <span id="changeCount">No changes pending</span>
+        </div>
+        
+        <div id="statusMessage" class="status-message" style="display: none;"></div>
+        
+        <table id="priceTable" class="display responsive nowrap" style="width:100%">
+            <thead>
+                <tr>
+                    <th>Section</th>
+                    <th>Model</th>
+                    <th>Dimensions</th>
+                    <th>Box Price</th>
+                    <th>Standard</th>
+                    <th>Fragile</th>
+                    <th>Custom</th>
+                    <th>Location</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Data will be loaded dynamically -->
+            </tbody>
+        </table>
+    </div>
+    
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.2.2/js/dataTables.buttons.min.js"></script>
+    <script src="https://cdn.datatables.net/select/1.3.4/js/dataTables.select.min.js"></script>
+    <script src="https://cdn.datatables.net/responsive/2.2.9/js/dataTables.responsive.min.js"></script>
+    <script>
+    $(document).ready(function() {
+        // Extract store number from URL and create the back link
+        const pathParts = window.location.pathname.split('/');
+        const storeId = pathParts[1] || '1';
+        $('#backLink').html(`<a href="/${storeId}">Back to Store ${storeId} Main Page</a>`);
+        $('#storeHeader').text(`Box Price Editor - Store ${storeId}`);
+        
+        // Store all changes to be saved
+        let changedData = {};
+        let changeCount = 0;
+        let isEditable = false; // Default to read-only
+        let priceTable;
+
+        // Generate a simple CSRF token for this session
+        const csrfToken = Math.random().toString(36).substring(2, 15) +
+                         Math.random().toString(36).substring(2, 15);
+
+        
+        // Function to update the change counter
+        function updateChangeCounter() {
+            const $saveButton = $('#saveChanges');
+            const $changeCount = $('#changeCount');
+            
+            if (changeCount > 0) {
+                $saveButton.prop('disabled', !isEditable);
+                $changeCount.text(changeCount + ' change' + (changeCount > 1 ? 's' : '') + ' pending');
+                $changeCount.addClass('changes-pending');
+            } else {
+                $saveButton.prop('disabled', true);
+                $changeCount.text('No changes pending');
+                $changeCount.removeClass('changes-pending');
+            }
+        }
+        
+        // Function to show status message
+        function showStatus(message, type) {
+            const $status = $('#statusMessage');
+            $status.removeClass('success error loading').addClass(type);
+            $status.text(message);
+            $status.show();
+
+            if (type !== 'loading') {
+                setTimeout(function() {
+                    $status.fadeOut();
+                }, 5000);
+            }
+        }
+        
+        // First check if store is editable
+        $.ajax({
+            url: '/api/store/' + storeId + '/is_editable',
+            method: 'GET',
+            success: function(response) {
+                isEditable = response.editable;
+                
+                // Update UI based on editability
+                if (!isEditable) {
+                    $('#readOnlyMessage').show();
+                    $('#editInstructions').hide();
+                    $('#saveChanges').prop('disabled', true);
+                }
+                
+                // Load box data next
+                loadBoxData();
+            },
+            error: function() {
+                showStatus('Failed to check if store is editable', 'error');
+                // Still load the data even if check fails
+                loadBoxData();
+            }
+        });
+        
+        // Function to load box data
+        function loadBoxData() {
+            $.ajax({
+                url: '/api/store/' + storeId + '/boxes_with_sections',
+                method: 'GET',
+                success: function(data) {
+                    initializeDataTable(data);
+                },
+                error: function() {
+                    showStatus('Failed to load box data', 'error');
+                }
+            });
+        }
+        
+        // Function to initialize the DataTable
+        function initializeDataTable(data) {
+            priceTable = $('#priceTable').DataTable({
+                data: data,
+                columns: [
+                    { data: 'section' },
+                    { data: 'model' },
+                    { data: 'dimensions' },
+                    { 
+                        data: 'box_price',
+                        render: function(data) {
+                            return parseFloat(data).toFixed(2);
+                        },
+                        className: 'editable'
+                    },
+                    { 
+                        data: 'standard',
+                        render: function(data) {
+                            return parseFloat(data).toFixed(2);
+                        },
+                        className: 'editable'
+                    },
+                    { 
+                        data: 'fragile',
+                        render: function(data) {
+                            return parseFloat(data).toFixed(2);
+                        },
+                        className: 'editable'
+                    },
+                    { 
+                        data: 'custom',
+                        render: function(data) {
+                            return parseFloat(data).toFixed(2);
+                        },
+                        className: 'editable'
+                    },
+                    { data: 'location' },
+                    {
+                        data: null,
+                        defaultContent: '<button class="reset-btn">Reset</button>',
+                        orderable: false
+                    }
+                ],
+                paging: false,
+                responsive: true,
+                rowCallback: function(row, data) {
+                    // Apply classes based on section
+                    if (data.section === 'CUBE BOXES') {
+                        $(row).addClass('blue-row');
+                    } else if (data.section === 'FLAT & SMALL BOXES') {
+                        $(row).addClass('yellow-row');
+                    } else if (data.section === 'MEDIUM BOXES') {
+                        $(row).addClass('green-row');
+                    } else if (data.section === 'LARGE BOXES') {
+                        $(row).addClass('pink-row');
+                    } else if (data.section === 'SPECIALTY BOXES') {
+                        $(row).addClass('orange-row');
+                    }
+                }
+            });
+            
+            setupEventHandlers();
+        }
+        
+        // Set up all event handlers
+        function setupEventHandlers() {
+            // Make price cells editable only if the store is editable
+            $('#priceTable').on('click', 'td.editable', function() {
+                // Skip if store is not editable
+                if (!isEditable) {
+                    showStatus('This store is read-only. Set editable: true in the YAML file to enable editing.', 'error');
+                    return;
+                }
+                
+                const cell = $(this);
+                const value = cell.text();
+                const row = priceTable.row(cell.closest('tr')).data();
+                const columnIndex = priceTable.cell(this).index().column;
+                const columnName = priceTable.column(columnIndex).header().textContent.toLowerCase().trim();
+                
+                // Create input for editing - safer approach to avoid XSS
+                cell.empty();
+                const input = $('<input>', {
+                    type: 'number',
+                    step: '0.01',
+                    min: '0',
+                    placeholder: 'Enter price',
+                    pattern: '[0-9]+(\.[0-9]{1,2})?', // Restrict to valid price format
+                    style: 'width: 100%; box-sizing: border-box; text-align: right; padding-right: 5px;'
+                });
+                input.val(value);
+                cell.append(input);
+                input.focus();
+                input.select();
+                
+                // Handle input blur (save value)
+                input.on('blur', function() {
+                    const inputValue = $(this).val();
+                    const newValue = parseFloat(inputValue);
+                    const originalValue = parseFloat(value);
+                    
+                    // Check if value is valid (must be a valid number)
+                    if (isNaN(newValue) || inputValue.trim() === '' || /[^0-9.\-]/.test(inputValue)) {
+                        // Simply revert to the original value without marking as changed
+                        cell.text(value); // Use the original string value to maintain exact formatting
+                        showStatus('Invalid input', 'error');
+                        return;
+                    }
+                    
+                    // Check if the value actually changed
+                    if (newValue === originalValue) {
+                        // No actual change, just revert to original value
+                        cell.text(value); // Use the original string value to maintain exact formatting
+                        return;
+                    }
+                    
+                    // Valid number that has changed
+                    cell.text(newValue.toFixed(2));
+                    
+                    // Determine which price field to update
+                    let priceIndex;
+                    switch(columnName) {
+                        case 'box price': priceIndex = 0; break;
+                        case 'standard': priceIndex = 1; break;
+                        case 'fragile': priceIndex = 2; break;
+                        case 'custom': priceIndex = 3; break;
+                        default: return; // Exit if column not recognized
+                    }
+                    
+                    // Track the change only if it's a new model or the value actually changed
+                    if (!changedData[row.model]) {
+                        changedData[row.model] = {};
+                        changedData[row.model][priceIndex] = newValue;
+                        changeCount++;
+                    } else if (changedData[row.model][priceIndex] !== newValue) {
+                        // Update existing change
+                        changedData[row.model][priceIndex] = newValue;
+                    }
+                    
+                    updateChangeCounter();
+                });
+                
+                // Handle enter key
+                input.on('keypress', function(e) {
+                    if (e.which === 13) {
+                        input.blur();
+                    }
+                });
+                
+                // Handle input events to validate values and prevent NaN
+                input.on('input', function() {
+                    const inputValue = $(this).val();
+                });
+                
+                // Validate input on change
+                input.on('change', function() {
+                    const inputValue = $(this).val();
+                    // If empty or invalid, do not modify the input - blur handler will handle reverting
+                    if (inputValue === '' || isNaN(parseFloat(inputValue)) || /[^0-9.\-]/.test(inputValue)) {
+                        // Don't change the input - let blur handle reverting
+                    }
+                });
+            });
+            
+            // Reset button handler
+            $('#priceTable').on('click', '.reset-btn', function() {
+                // Skip if store is not editable
+                if (!isEditable) {
+                    showStatus('This store is read-only. Set editable: true in the YAML file to enable editing.', 'error');
+                    return;
+                }
+                
+                const row = priceTable.row($(this).closest('tr')).data();
+                const model = row.model;
+                
+                if (changedData[model]) {
+                    delete changedData[model];
+                    changeCount--;
+                    updateChangeCounter();
+                    
+                    const rowElement = $(this).closest('tr');
+                    const rowIndex = priceTable.row(rowElement).index();
+                    
+                    // Reload the row data
+                    $.ajax({
+                        url: '/api/store/' + storeId + '/box/' + encodeURIComponent(model),
+                        method: 'GET',
+                        success: function(data) {
+                            // Update the table with original values
+                            priceTable.cell(rowIndex, 3).data(parseFloat(data.prices[0]).toFixed(2));
+                            priceTable.cell(rowIndex, 4).data(parseFloat(data.prices[1]).toFixed(2));
+                            priceTable.cell(rowIndex, 5).data(parseFloat(data.prices[2]).toFixed(2));
+                            priceTable.cell(rowIndex, 6).data(parseFloat(data.prices[3]).toFixed(2));
+                            
+                            showStatus('Reset changes for ' + model, 'success');
+                        },
+                        error: function() {
+                            showStatus('Failed to reset changes for ' + model, 'error');
+                        }
+                    });
+                }
+            });
+            
+            // Save changes button handler
+            $('#saveChanges').on('click', function() {
+                // Double-check editability before saving
+                if (!isEditable) {
+                    showStatus('This store is read-only. Set editable: true in the YAML file to enable editing.', 'error');
+                    return;
+                }
+                
+                if (changeCount > 0) {
+                    showStatus('Saving changes...', 'loading');
+                    
+                    $.ajax({
+                        url: '/api/store/' + storeId + '/update_prices',
+                        method: 'POST',
+                        contentType: 'application/json',
+                        headers: {
+                            'X-CSRF-Token': csrfToken
+                        },
+                        data: JSON.stringify({
+                            changes: changedData,
+                            csrf_token: csrfToken
+                        }),
+                        success: function() {
+                            showStatus('All changes saved successfully!', 'success');
+                            changedData = {};
+                            changeCount = 0;
+                            updateChangeCounter();
+                        },
+                        error: function(xhr) {
+                            let detail = '';
+                            if (xhr.responseJSON && xhr.responseJSON.detail) {
+                                detail = xhr.responseJSON.detail;
+                            } else if (xhr.responseText) {
+                                detail = xhr.responseText;
+                            }
+                            showStatus('Error saving changes: ' + (xhr.statusText || 'Unknown error') + ': ' + detail, 'error');
+                        }
+                    });
+                }
+            });
+        }
+    });
+    </script>
+</body>
+</html>
