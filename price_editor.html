@@ -197,6 +197,27 @@
             background-color: rgba(255, 182, 193, 0.6) !important; /* Light Pink */
             font-weight: bold;
         }
+        
+        /* Fix table header padding for icons */
+        th {
+            padding: 5px 3px !important;
+            text-align: center !important;
+            vertical-align: middle !important;
+        }
+        
+        /* Center images in headers and add pointer cursor for tooltips */
+        th img {
+            display: block;
+            margin: 0 auto;
+            max-width: 100%;
+            height: auto;
+            cursor: help;
+        }
+        
+        /* Group header styles need to ensure icons display correctly */
+        .group-header {
+            padding-bottom: 0 !important;
+        }
         .group-header {
             background-color: #e9ecef;
             text-align: center;
@@ -218,19 +239,25 @@
             border-bottom: 1px solid rgba(139, 0, 0, 0.5);
             color: white;
         }
-        .undo-btn {
-            visibility: hidden;
+        table#priceTable .undo-btn {
+            opacity: 0;
             cursor: pointer;
             color: #6c757d;
             font-size: 16px;
-            transition: color 0.2s;
+            transition: opacity 0.2s;
             text-align: center;
         }
-        .undo-btn:hover {
+        table#priceTable .undo-btn:hover {
             color: #dc3545;
         }
-        .show-undo {
-            visibility: visible;
+        table#priceTable .undo-btn.show-undo {
+            opacity: 1 !important;
+        }
+        /* Remove all icon styles from here - now in icons.css */
+        
+        /* Ensure tooltips work on header images */
+        th img {
+            cursor: help;
         }
     </style>
 </head>
@@ -268,6 +295,7 @@
     <script src="https://cdn.datatables.net/select/1.3.4/js/dataTables.select.min.js"></script>
     <script src="https://cdn.datatables.net/responsive/2.2.9/js/dataTables.responsive.min.js"></script>
     <script src="/pricing.js"></script>
+    <script src="/api.js"></script>
     <script>
     $(document).ready(function() {
         // Extract store number from URL and create the back link
@@ -282,6 +310,7 @@
         let isEditable = false; // Default to read-only
         let pricingMode = 'standard'; // Default pricing mode
         let priceTable;
+        let originalData = []; // Store original data for undo functionality
 
         // Generate a simple CSRF token for this session
         const csrfToken = Math.random().toString(36).substring(2, 15) +
@@ -320,19 +349,16 @@
         
         // We've moved this check to be combined with pricing mode check
         
-        // First check pricing mode and editability
-        $.ajax({
-            url: '/api/store/' + storeId + '/pricing_mode',
-            method: 'GET',
-            success: function(response) {
-                pricingMode = response.mode;
+        // First check pricing mode and editability using api.js functions
+        window.api.fetchPricingMode(storeId)
+            .then(mode => {
+                pricingMode = mode;
                 
                 // Next check if store is editable
-                $.ajax({
-                    url: '/api/store/' + storeId + '/is_editable',
-                    method: 'GET',
-                    success: function(response) {
-                        isEditable = response.editable;
+                return window.api.isStoreEditable(storeId);
+            })
+            .then(editable => {
+                isEditable = editable;
                         
                         // Update UI based on editability
                         if (!isEditable) {
@@ -342,57 +368,27 @@
                         }
                         
                         // Load box data next
-                        loadBoxData();
-                    },
-                    error: function() {
-                        showStatus('Failed to check if store is editable', 'error');
-                        // Still load the data even if check fails
-                        loadBoxData();
-                    }
-                });
-            },
-            error: function() {
-                showStatus('Failed to check pricing mode, defaulting to standard', 'error');
-                // Continue with the editability check even if pricing mode check fails
-                $.ajax({
-                    url: '/api/store/' + storeId + '/is_editable',
-                    method: 'GET',
-                    success: function(response) {
-                        isEditable = response.editable;
-                        
-                        // Update UI based on editability
-                        if (!isEditable) {
-                            $('#readOnlyMessage').show();
-                            $('#editInstructions').hide();
-                            $('#saveChanges').prop('disabled', true);
-                        }
-                        
-                        // Load box data next
-                        loadBoxData();
-                    },
-                    error: function() {
-                        showStatus('Failed to check if store is editable', 'error');
-                        // Still load the data even if check fails
-                        loadBoxData();
-                    }
-                });
-            }
-        });
+                loadBoxData();
+            })
+            .catch(error => {
+                console.error('Error checking pricing mode or editability:', error);
+                showStatus('Failed to check store settings', 'error');
+                // Still load the data even if checks fail
+                loadBoxData();
+            });
         
         // Function to load box data
         function loadBoxData() {
-            $.ajax({
-                url: '/api/store/' + storeId + '/all_boxes',
-                method: 'GET',
-                success: function(response) {
+            window.api.fetchAllBoxes(storeId)
+                .then(response => {
                     // Process the boxes into the format needed for the table
                     const processedData = processBoxesData(response.boxes, response.pricing_mode);
                     initializeDataTable(processedData);
-                },
-                error: function() {
+                })
+                .catch(error => {
+                    console.error('Error loading box data:', error);
                     showStatus('Failed to load box data', 'error');
-                }
-            });
+                });
         }
         
         // Function to process boxes data into table format
@@ -546,9 +542,9 @@
                 }
                 headerRow.append('<th>Dimensions</th>');
                 headerRow.append('<th>Box Price</th>');
-                headerRow.append('<th>Standard</th>');
-                headerRow.append('<th>Fragile</th>');
-                headerRow.append('<th>Custom</th>');
+                headerRow.append('<th><img src="/assets/icons/total.png" width="24" height="24" alt="Standard Total" title="Standard Total"></th>');
+                headerRow.append('<th><img src="/assets/icons/total.png" width="24" height="24" alt="Fragile Total" title="Fragile Total"></th>');
+                headerRow.append('<th><img src="/assets/icons/total.png" width="24" height="24" alt="Custom Total" title="Custom Total"></th>');
                 if (hasLocations) {
                     headerRow.append('<th>Location</th>');
                 }
@@ -614,20 +610,20 @@
                 // Second row with individual column headers
                 const detailHeaderRow = $('<tr></tr>');
                 
-                // Standard group columns
-                detailHeaderRow.append('<th class="standard-group">Materials</th>');
-                detailHeaderRow.append('<th class="standard-group">Services</th>');
-                detailHeaderRow.append('<th class="standard-group">Total</th>');
+                // Standard group columns  
+                detailHeaderRow.append('<th class="standard-group"><img src="/assets/icons/materials.png" width="24" height="24" alt="Materials" title="Standard Materials"></th>');
+                detailHeaderRow.append('<th class="standard-group"><img src="/assets/icons/services.png" width="24" height="24" alt="Services" title="Standard Services"></th>');
+                detailHeaderRow.append('<th class="standard-group"><img src="/assets/icons/total.png" width="24" height="24" alt="Total" title="Standard Total"></th>');
                 
                 // Fragile group columns
-                detailHeaderRow.append('<th class="fragile-group">Materials</th>');
-                detailHeaderRow.append('<th class="fragile-group">Services</th>');
-                detailHeaderRow.append('<th class="fragile-group">Total</th>');
+                detailHeaderRow.append('<th class="fragile-group"><img src="/assets/icons/materials.png" width="24" height="24" alt="Materials" title="Fragile Materials"></th>');
+                detailHeaderRow.append('<th class="fragile-group"><img src="/assets/icons/services.png" width="24" height="24" alt="Services" title="Fragile Services"></th>');
+                detailHeaderRow.append('<th class="fragile-group"><img src="/assets/icons/total.png" width="24" height="24" alt="Total" title="Fragile Total"></th>');
                 
                 // Custom group columns
-                detailHeaderRow.append('<th class="custom-group">Materials</th>');
-                detailHeaderRow.append('<th class="custom-group">Services</th>');
-                detailHeaderRow.append('<th class="custom-group">Total</th>');
+                detailHeaderRow.append('<th class="custom-group"><img src="/assets/icons/materials.png" width="24" height="24" alt="Materials" title="Custom Materials"></th>');
+                detailHeaderRow.append('<th class="custom-group"><img src="/assets/icons/services.png" width="24" height="24" alt="Services" title="Custom Services"></th>');
+                detailHeaderRow.append('<th class="custom-group"><img src="/assets/icons/total.png" width="24" height="24" alt="Total" title="Custom Total"></th>');
                 
                 // Add both rows to the header
                 $tableHeader.append(groupHeaderRow);
@@ -719,11 +715,15 @@
             columns.push({
                 data: null,
                 render: function(data, type, row) {
-                    return '<span class="undo-btn">↺</span>';
+                    const classes = row.hasChanges ? 'undo-btn show-undo' : 'undo-btn';
+                    return '<span class="' + classes + '">↺</span>';
                 },
                 className: 'text-center',
                 orderable: false
             });
+            
+            // Store a deep copy of the original data for undo functionality
+            originalData = JSON.parse(JSON.stringify(data));
             
             // Initialize the DataTable with the appropriate columns
             priceTable = $('#priceTable').DataTable({
@@ -757,6 +757,78 @@
         // Set up all event handlers
         function setupEventHandlers() {
             // Make price cells editable only if the store is editable
+            // Handle undo button click
+            $('#priceTable').on('click', '.undo-btn.show-undo', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const $button = $(this);
+                const $tr = $button.closest('tr');
+                
+                
+                if (!$tr.length) {
+                    console.error('Could not find parent tr');
+                    return;
+                }
+                
+                try {
+                    const row = priceTable.row($tr);
+                    
+                    if (!row || typeof row.data !== 'function') {
+                        console.error('Could not get valid DataTable row');
+                        return;
+                    }
+                    
+                    const rowData = row.data();
+                
+                if (!rowData) {
+                    console.error('Row data is undefined');
+                    return;
+                }
+                
+                
+                // Remove changes for this row
+                if (changedData[rowData.model]) {
+                    delete changedData[rowData.model];
+                    changeCount--;
+                    
+                    // Remove the hasChanges flag
+                    rowData.hasChanges = false;
+                    
+                    // Reload original data for this row
+                    const originalRow = originalData.find(r => r.model === rowData.model);
+                    if (originalRow) {
+                        // Restore all original values based on pricing mode
+                        if (pricingMode === 'standard') {
+                            rowData.box_price = originalRow.box_price;
+                            rowData.standard = originalRow.standard;
+                            rowData.fragile = originalRow.fragile;
+                            rowData.custom = originalRow.custom;
+                        } else {
+                            // For itemized pricing, restore all fields
+                            rowData.box_price = originalRow.box_price;
+                            rowData.standard_materials = originalRow.standard_materials;
+                            rowData.standard_services = originalRow.standard_services;
+                            rowData.standard_total = originalRow.standard_total;
+                            rowData.fragile_materials = originalRow.fragile_materials;
+                            rowData.fragile_services = originalRow.fragile_services;
+                            rowData.fragile_total = originalRow.fragile_total;
+                            rowData.custom_materials = originalRow.custom_materials;
+                            rowData.custom_services = originalRow.custom_services;
+                            rowData.custom_total = originalRow.custom_total;
+                        }
+                        
+                        // Update the row data and redraw
+                        row.data(rowData).draw();
+                    }
+                    
+                    updateChangeCounter();
+                }
+                } catch (error) {
+                    console.error('Error in undo handler:', error);
+                }
+            });
+            
             $('#priceTable').on('click', 'td.editable', function() {
                 // Skip if store is not editable
                 if (!isEditable) {
@@ -768,7 +840,15 @@
                 const value = cell.text();
                 const row = priceTable.row(cell.closest('tr')).data();
                 const columnIndex = priceTable.cell(this).index().column;
-                const columnName = priceTable.column(columnIndex).header().textContent.toLowerCase().trim();
+                const header = priceTable.column(columnIndex).header();
+                let columnName = header.textContent.toLowerCase().trim();
+                // If no text content, check for img alt text
+                if (!columnName) {
+                    const img = header.querySelector('img');
+                    if (img) {
+                        columnName = img.alt.toLowerCase().trim();
+                    }
+                }
                 
                 // Create input for editing - safer approach to avoid XSS
                 cell.empty();
@@ -784,6 +864,45 @@
                 cell.append(input);
                 input.focus();
                 input.select();
+                
+                // Handle keyboard navigation
+                input.on('keydown', function(e) {
+                    if (e.key === 'Tab') {
+                        e.preventDefault();
+                        
+                        // Find next editable cell
+                        const allEditableCells = $('#priceTable td.editable');
+                        const currentIndex = allEditableCells.index(cell);
+                        let nextCell;
+                        
+                        if (e.shiftKey) {
+                            // Shift+Tab goes left
+                            nextCell = allEditableCells.eq(currentIndex - 1);
+                        } else {
+                            // Tab goes right
+                            nextCell = allEditableCells.eq(currentIndex + 1);
+                        }
+                        
+                        // If we found a next cell, trigger blur then click it
+                        if (nextCell.length) {
+                            $(this).blur();
+                            setTimeout(() => {
+                                nextCell.click();
+                            }, 10);
+                        } else {
+                            // No next cell, just blur
+                            $(this).blur();
+                        }
+                    } else if (e.key === 'Enter') {
+                        // Enter just completes the edit
+                        e.preventDefault();
+                        $(this).blur();
+                    } else if (e.key === 'Escape') {
+                        // Escape cancels edit
+                        $(this).val(value); // Restore original value
+                        $(this).blur();
+                    }
+                });
                 
                 // Handle input blur (save value)
                 input.on('blur', function() {
@@ -816,7 +935,15 @@
                         
                         // Show the undo button for this row
                         const rowElement = cell.closest('tr');
-                        rowElement.find('.undo-btn').addClass('show-undo');
+                        const rowIndex = priceTable.row(rowElement).index();
+                        const rowData = priceTable.row(rowIndex).data();
+                        
+                        // Mark row as having changes in the data
+                        rowData.hasChanges = true;
+                        priceTable.row(rowIndex).data(rowData);
+                        
+                        // Force redraw the row to update the undo button
+                        priceTable.row(rowIndex).invalidate().draw(false);
                     }
                     
                     if (pricingMode === 'standard') {
@@ -874,7 +1001,6 @@
                         }
                         
                         if (fieldName) {
-                            console.log("Updating", row.model, fieldName, newValue);
                             changedData[row.model][fieldName] = newValue;
                             
                             // Find this row in the table
@@ -953,75 +1079,6 @@
                 });
             });
             
-            // Undo button handler
-            $('#priceTable').on('click', '.undo-btn', function() {
-                // Skip if store is not editable
-                if (!isEditable) {
-                    showStatus('This store is read-only. Set editable: true in the YAML file to enable editing.', 'error');
-                    return;
-                }
-                
-                const rowElement = $(this).closest('tr');
-                const row = priceTable.row(rowElement).data();
-                const model = row.model;
-                
-                if (changedData[model]) {
-                    delete changedData[model];
-                    changeCount--;
-                    updateChangeCounter();
-                    
-                    // Hide the undo button
-                    $(this).removeClass('show-undo');
-                    
-                    const rowIndex = priceTable.row(rowElement).index();
-                    
-                    // Reload the row data
-                    $.ajax({
-                        url: '/api/store/' + storeId + '/box/' + encodeURIComponent(model),
-                        method: 'GET',
-                        success: function(data) {
-                            // Update the table with original values based on pricing mode
-                            if (pricingMode === 'standard') {
-                                // Standard pricing mode
-                                priceTable.cell(rowIndex, 3).data(parseFloat(data.prices[0]).toFixed(2));
-                                priceTable.cell(rowIndex, 4).data(parseFloat(data.prices[1]).toFixed(2));
-                                priceTable.cell(rowIndex, 5).data(parseFloat(data.prices[2]).toFixed(2));
-                                priceTable.cell(rowIndex, 6).data(parseFloat(data.prices[3]).toFixed(2));
-                            } else {
-                                // Itemized pricing mode
-                                const ip = data['itemized-prices'] || {};
-                                
-                                // Box price (common)
-                                priceTable.cell(rowIndex, 3).data(parseFloat(ip['box-price'] || 0).toFixed(2));
-                                
-                                // Standard level
-                                priceTable.cell(rowIndex, 4).data(parseFloat(ip['standard-materials'] || 0).toFixed(2));
-                                priceTable.cell(rowIndex, 5).data(parseFloat(ip['standard-services'] || 0).toFixed(2));
-                                const standardTotal = (ip['box-price'] || 0) + (ip['standard-materials'] || 0) + (ip['standard-services'] || 0);
-                                priceTable.cell(rowIndex, 6).data(parseFloat(standardTotal).toFixed(2));
-                                
-                                // Fragile level
-                                priceTable.cell(rowIndex, 7).data(parseFloat(ip['fragile-materials'] || 0).toFixed(2));
-                                priceTable.cell(rowIndex, 8).data(parseFloat(ip['fragile-services'] || 0).toFixed(2));
-                                const fragileTotal = (ip['box-price'] || 0) + (ip['fragile-materials'] || 0) + (ip['fragile-services'] || 0);
-                                priceTable.cell(rowIndex, 9).data(parseFloat(fragileTotal).toFixed(2));
-                                
-                                // Custom level
-                                priceTable.cell(rowIndex, 10).data(parseFloat(ip['custom-materials'] || 0).toFixed(2));
-                                priceTable.cell(rowIndex, 11).data(parseFloat(ip['custom-services'] || 0).toFixed(2));
-                                const customTotal = (ip['box-price'] || 0) + (ip['custom-materials'] || 0) + (ip['custom-services'] || 0);
-                                priceTable.cell(rowIndex, 12).data(parseFloat(customTotal).toFixed(2));
-                            }
-                            
-                            showStatus('Reset changes for ' + model, 'success');
-                        },
-                        error: function() {
-                            showStatus('Failed to reset changes for ' + model, 'error');
-                        }
-                    });
-                }
-            });
-            
             // Save changes button handler
             $('#saveChanges').on('click', function() {
                 // Double-check editability before saving
@@ -1033,41 +1090,23 @@
                 if (changeCount > 0) {
                     showStatus('Saving changes...', 'loading');
                     
-                    // Debug log the changes
-                    console.log("Changes to be saved:", JSON.stringify(changedData, null, 2));
                     
-                    // Determine the endpoint based on pricing mode
-                    const endpoint = pricingMode === 'standard' 
-                        ? '/api/store/' + storeId + '/update_prices'
-                        : '/api/store/' + storeId + '/update_itemized_prices';
+                    // Use the appropriate update function based on pricing mode
+                    const updateFunction = pricingMode === 'standard' 
+                        ? window.api.updateStandardPrices
+                        : window.api.updateItemizedPrices;
                     
-                    $.ajax({
-                        url: endpoint,
-                        method: 'POST',
-                        contentType: 'application/json',
-                        headers: {
-                            'X-CSRF-Token': csrfToken
-                        },
-                        data: JSON.stringify({
-                            changes: changedData,
-                            csrf_token: csrfToken
-                        }),
-                        success: function() {
+                    updateFunction(storeId, changedData, csrfToken)
+                        .then(() => {
                             showStatus('All changes saved successfully!', 'success');
                             changedData = {};
                             changeCount = 0;
                             updateChangeCounter();
-                        },
-                        error: function(xhr) {
-                            let detail = '';
-                            if (xhr.responseJSON && xhr.responseJSON.detail) {
-                                detail = xhr.responseJSON.detail;
-                            } else if (xhr.responseText) {
-                                detail = xhr.responseText;
-                            }
-                            showStatus('Error saving changes: ' + (xhr.statusText || 'Unknown error') + ': ' + detail, 'error');
-                        }
-                    });
+                        })
+                        .catch(error => {
+                            console.error('Error saving changes:', error);
+                            showStatus('Error saving changes: ' + error.message, 'error');
+                        });
                 }
             });
         }

@@ -1,15 +1,22 @@
-from fastapi import FastAPI, HTTPException, Path, Body, Request
-from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
-from pydantic import BaseModel
-from typing import Dict, List, Union, Optional, Any
-import yaml
+import json
 import os
 import re
-import json
+from typing import Any, Dict, List, Optional, Union
+
+import yaml
+from fastapi import Body, FastAPI, HTTPException, Path, Request
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
 app = FastAPI()
 
-# Define static asset routes first to prevent conflicts with dynamic routes
+# Mount static directories
+app.mount("/assets", StaticFiles(directory="assets"), name="assets")
+app.mount("/lib", StaticFiles(directory="lib"), name="lib")
+app.mount("/components", StaticFiles(directory="components"), name="components")
+
+# Define static asset routes for compatibility with existing code
 @app.get("/index.js", response_class=HTMLResponse)
 async def base_script():
     # Add cache-busting headers
@@ -23,13 +30,46 @@ async def base_script():
 
 @app.get("/pricing.js", response_class=HTMLResponse)
 async def pricing_script():
-    # Add cache-busting headers
+    # Serve pricing module from lib/pricing.js
     headers = {
         "Cache-Control": "no-cache, no-store, must-revalidate",
         "Pragma": "no-cache",
         "Expires": "0"
     }
-    with open("pricing.js", "r") as f:
+    with open("lib/pricing.js", "r") as f:
+        return HTMLResponse(f.read(), media_type="text/javascript", headers=headers)
+
+@app.get("/packing.js", response_class=HTMLResponse)
+async def packing_script():
+    # Serve packing module from lib/packing.js
+    headers = {
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0"
+    }
+    with open("lib/packing.js", "r") as f:
+        return HTMLResponse(f.read(), media_type="text/javascript", headers=headers)
+
+@app.get("/api.js", response_class=HTMLResponse)
+async def api_script():
+    # Serve api module from lib/api.js
+    headers = {
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0"
+    }
+    with open("lib/api.js", "r") as f:
+        return HTMLResponse(f.read(), media_type="text/javascript", headers=headers)
+
+@app.get("/location.js", response_class=HTMLResponse)
+async def location_script():
+    # Serve location module from lib/location.js
+    headers = {
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0"
+    }
+    with open("lib/location.js", "r") as f:
         return HTMLResponse(f.read(), media_type="text/javascript", headers=headers)
 
 @app.get("/favicon.ico", response_class=FileResponse)
@@ -42,6 +82,7 @@ async def root():
     # Default route will return 404
     raise HTTPException(status_code=404, detail="Not found")
 
+# Catch-all pattern should be last to avoid conflicts
 @app.get("/{store_id}", response_class=HTMLResponse)
 async def store_page(store_id: str = Path(..., regex=r"^\d{1,4}$")):
     with open("index.html", "r") as f:
@@ -69,6 +110,112 @@ async def price_editor(store_id: str = Path(..., regex=r"^\d{1,4}$")):
     }
 
     return HTMLResponse(content=html_content, headers=headers)
+
+# New route structure for admin pages
+@app.get("/{store_id}/prices", response_class=HTMLResponse)
+async def prices_page(store_id: str = Path(..., regex=r"^\d{1,4}$")):
+    # Forward to existing price_editor for now
+    # Eventually this will point to admin/prices/index.html
+    return await price_editor(store_id)
+
+@app.get("/{store_id}/locations", response_class=HTMLResponse)
+async def locations_page(store_id: str = Path(..., regex=r"^\d{1,4}$")):
+    # Check if the store's YAML file exists
+    yaml_file = f"store{store_id}.yml"
+    if not os.path.exists(yaml_file):
+        raise HTTPException(status_code=404, detail=f"Store configuration not found for store {store_id}")
+
+    # When implemented, load the location editor HTML
+    # For now, return a placeholder page
+    return HTMLResponse(content=f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Location Editor - Store {store_id}</title>
+        <link rel="stylesheet" href="/assets/css/common.css">
+        <link rel="stylesheet" href="/assets/css/mobile.css">
+    </head>
+    <body>
+        <div class="container">
+            <h1>Location Editor - Store {store_id}</h1>
+            <p>This feature is coming soon.</p>
+            <a href="/{store_id}">Back to Store {store_id} Main Page</a>
+        </div>
+        <script>
+            // Initialize admin nav when implemented
+            // initAdminNav('container', '{store_id}', 'locations');
+        </script>
+    </body>
+    </html>
+    """)
+
+@app.get("/{store_id}/floorplan", response_class=HTMLResponse)
+async def floorplan_page(store_id: str = Path(..., regex=r"^\d{1,4}$")):
+    # Check if the store's YAML file exists
+    yaml_file = f"store{store_id}.yml"
+    if not os.path.exists(yaml_file):
+        raise HTTPException(status_code=404, detail=f"Store configuration not found for store {store_id}")
+
+    # When implemented, load the floorplan editor HTML
+    # For now, return a placeholder page
+    return HTMLResponse(content=f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Floorplan Editor - Store {store_id}</title>
+        <link rel="stylesheet" href="/assets/css/common.css">
+        <link rel="stylesheet" href="/assets/css/mobile.css">
+    </head>
+    <body>
+        <div class="container">
+            <h1>Floorplan Editor - Store {store_id}</h1>
+            <p>This feature is coming soon.</p>
+            <a href="/{store_id}">Back to Store {store_id} Main Page</a>
+        </div>
+        <script>
+            // Initialize admin nav when implemented
+            // initAdminNav('container', '{store_id}', 'floorplan');
+        </script>
+    </body>
+    </html>
+    """)
+
+@app.get("/{store_id}/settings", response_class=HTMLResponse)
+async def settings_page(store_id: str = Path(..., regex=r"^\d{1,4}$")):
+    # Check if the store's YAML file exists
+    yaml_file = f"store{store_id}.yml"
+    if not os.path.exists(yaml_file):
+        raise HTTPException(status_code=404, detail=f"Store configuration not found for store {store_id}")
+
+    # When implemented, load the settings page HTML
+    # For now, return a placeholder page
+    return HTMLResponse(content=f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Store Settings - Store {store_id}</title>
+        <link rel="stylesheet" href="/assets/css/common.css">
+        <link rel="stylesheet" href="/assets/css/mobile.css">
+    </head>
+    <body>
+        <div class="container">
+            <h1>Store Settings - Store {store_id}</h1>
+            <p>This feature is coming soon.</p>
+            <a href="/{store_id}">Back to Store {store_id} Main Page</a>
+        </div>
+        <script>
+            // Initialize admin nav when implemented
+            // initAdminNav('container', '{store_id}', 'settings');
+        </script>
+    </body>
+    </html>
+    """)
 
 @app.get("/api/store/{store_id}/pricing_mode", response_class=JSONResponse)
 async def get_pricing_mode(store_id: str = Path(..., regex=r"^\d{1,4}$")):
@@ -556,6 +703,9 @@ class Comment(BaseModel):
 async def is_store_editable(store_id: str = Path(..., regex=r"^\d{1,4}$")):
     data = load_store_yaml(store_id)
     return {"editable": data.get("editable", False)}
+
+class Comment(BaseModel):
+    text: str
 
 @app.post("/comments")
 async def save_comment(comment: Comment):
