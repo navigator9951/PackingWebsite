@@ -196,7 +196,7 @@ function gen_html() {
             const dumpBtn = document.createElement("button")
             dumpBtn.textContent = "Dump state"
             dumpBtn.addEventListener("click", () => {
-                // console.log(JSON.stringify(state))
+                // Only in debug mode - log state to console
                 console.log(state)
             })
             debugDiv.appendChild(dumpBtn)
@@ -281,7 +281,7 @@ function gen_chart() {
     for (const box of state.availableBoxes) {
         const boxResults = box.gen_boxResults()
 
-        // console.log(boxResults)
+        // Process boxResults for display
         for (const packingLevel of Object.keys(boxResults)) {
             if (checkBoxState[packingLevel]) {
                 for (const packingStrategy of Object.keys(boxResults[packingLevel])) {
@@ -401,11 +401,26 @@ class Box {
     constructor(dimensions, open_dim, prices) {
         // dimensions: [int, int, int] -> What are the dimensions of the box
         // open_dim: int -> Along which dimension does the box open (for tele)
-        // prices: [np_float, sp_float, fp_float, cp_float] -> price for each packing level
+        // prices: [np_float, sp_float, fp_float, cp_float] -> price for each packing level OR itemized-prices object
         const open_dim_val = dimensions[open_dim]
         this.dimensions = dimensions.toSorted((a, b) => b - a)     // Just to presort by size
         this.open_dim = this.dimensions.findIndex((e) => {return e == open_dim_val})
-        this.prices = prices
+        
+        // Handle both standard and itemized pricing
+        if (Array.isArray(prices)) {
+            // Standard pricing - array of 4 values
+            this.prices = prices;
+        } else if (prices && prices['itemized-prices']) {
+            // Itemized pricing - convert to standard format for compatibility
+            this.prices = this.convertItemizedToStandard(prices['itemized-prices']);
+        } else if (prices && typeof prices === 'object') {
+            // Direct itemized prices object
+            this.prices = this.convertItemizedToStandard(prices);
+        } else {
+            // Fallback to zeros if no pricing info
+            this.prices = [0, 0, 0, 0];
+        }
+        
         this.packingLevelNames = ["No Pack", "Standard Pack", "Fragile Pack", "Custom Pack"]
         this.altPackingNames = ["Normal", "Telescoping", "Cheating", "Flattened"]
         this.packingOffsets = {
@@ -414,7 +429,36 @@ class Box {
             "Fragile Pack": 4,
             "Custom Pack": 6
         }
+        
+        // Initialize box properties
+        this.initializeBoxProperties();
+    }
+    
+    // Convert itemized pricing to standard pricing array
+    convertItemizedToStandard(itemizedPrices) {
+        // Use the itemizedToStandard function from pricing.js if available
+        if (typeof window !== 'undefined' && typeof window.itemizedToStandard === 'function') {
+            return window.itemizedToStandard(itemizedPrices);
+        }
+        
+        // Standard conversion implementation
+        const boxPrice = itemizedPrices['box-price'] || 0;
+        const standardMaterials = itemizedPrices['standard-materials'] || 0;
+        const standardServices = itemizedPrices['standard-services'] || 0;
+        const fragileMaterials = itemizedPrices['fragile-materials'] || 0;
+        const fragileServices = itemizedPrices['fragile-services'] || 0;
+        const customMaterials = itemizedPrices['custom-materials'] || 0;
+        const customServices = itemizedPrices['custom-services'] || 0;
+        
+        return [
+            boxPrice,
+            boxPrice + standardMaterials + standardServices,
+            boxPrice + fragileMaterials + fragileServices,
+            boxPrice + customMaterials + customServices
+        ];
+    }
 
+    initializeBoxProperties() {
         this.openLength = this.dimensions[this.open_dim] 
         if (this.open_dim == 0) {
             this.largerConstraint = this.dimensions[1]
@@ -428,7 +472,7 @@ class Box {
         }
         this.flapLength = this.smallerConstraint / 2
 
-        // this.debug = this.largerConstraint == 6 && this.smallerConstraint == 6 && this.openLength == 49
+        // Debug flags - disabled by default
         this.debug = false
         this.debugState = null
     }
@@ -588,9 +632,6 @@ class Box {
 
     gen_boxResults() {
         // Based on current state
-        if (this.debug) {
-            console.log("---Gen box results---")
-        }
         const result = {}
         for (const packingLevel of this.packingLevelNames) {
             result[packingLevel] = {}
@@ -643,13 +684,25 @@ async function load_boxes() {
             data.boxes.forEach(boxData => {
                 let box;
 
-                if (boxData.type === 'NormalBox') {
-                    box = Box.NormalBox(boxData.dimensions, boxData.prices);
-                } else if (boxData.type === 'CustomBox') {
-                    box = new Box(boxData.dimensions, boxData.open_dim, boxData.prices);
+                let pricingData;
+                
+                // Handle different pricing structures
+                if (boxData.prices) {
+                    pricingData = boxData.prices;
+                } else if (boxData['itemized-prices']) {
+                    pricingData = { 'itemized-prices': boxData['itemized-prices'] };
                 } else {
-                    console.warn(`Skipping box with unknown type: ${boxData.type}`);
-                    return; // Skip unknown box types
+                    // Use default pricing when no pricing data is provided
+                    pricingData = [0, 0, 0, 0]; // Default to zeros
+                }
+                
+                if (boxData.type === 'NormalBox') {
+                    box = Box.NormalBox(boxData.dimensions, pricingData);
+                } else if (boxData.type === 'CustomBox') {
+                    box = new Box(boxData.dimensions, boxData.open_dim || 2, pricingData);
+                } else {
+                    // Skip unknown box types
+                    return;
                 }
 
                 boxes.push(box);

@@ -1,3 +1,5 @@
+pricing-mode: standard
+editable: true
 boxes:
   - type: NormalBox
     supplier: ABC
@@ -398,136 +400,157 @@ boxes:
     prices: [0, 0, 0, 0]
     location: "4"
 
-  ############################ DON'T USE THESE ######################
-
   - type: NormalBox
     supplier: ABC
     model: "30 X 24 X 6 - UPS"
     dimensions: [30, 24, 6]
+    prices: [0, 0, 0, 0]
 
   - type: NormalBox
     supplier: ABC
     model: "24 X 24 X 16 - UPS"
     dimensions: [24, 24, 16]
     alternate_depths: [14.0, 12.0, 10.0]
+    prices: [0, 0, 0, 0]
 
   - type: NormalBox
     supplier: ABC
     model: "141010"
     dimensions: [14, 10, 10]
     alternate_depths: [8.0, 6.0]
+    prices: [0, 0, 0, 0]
 
   - type: NormalBox
     supplier: ABC
     model: "J-17"
     dimensions: [18, 13, 6]
+    prices: [0, 0, 0, 0]
 
   - type: NormalBox
     supplier: ABC
     model: "GOLF BOX"
     dimensions: [46, 19, 11]
+    prices: [0, 0, 0, 0]
 
   - type: NormalBox
     supplier: ABC
     model: "J-70"
     dimensions: [20, 15, 15]
     alternate_depths: [12.0, 9.0]
+    prices: [0, 0, 0, 0]
 
   - type: NormalBox
     supplier: ABC
     model: "WREATH-2"
     dimensions: [27, 24, 6]
     alternate_depths: [24.0, 20.0]
+    prices: [0, 0, 0, 0]
 
   - type: NormalBox
     supplier: ABC
     model: "84C"
     dimensions: [24, 16, 13]
     alternate_depths: [13.5, 11.0]
+    prices: [0, 0, 0, 0]
 
   - type: NormalBox
     supplier: ABC
     model: "241812"
     dimensions: [24, 18, 12]
     alternate_depths: [10.0, 8.0, 6.0]
+    prices: [0, 0, 0, 0]
 
   - type: NormalBox
     supplier: ABC
     model: "J-57"
     dimensions: [26, 18, 13]
     alternate_depths: [10.0, 7.0]
+    prices: [0, 0, 0, 0]
 
   - type: NormalBox
     supplier: ABC
     model: "TV-Box"
     dimensions: [27, 20, 18]
+    prices: [0, 0, 0, 0]
 
   - type: NormalBox
     supplier: ABC
     model: "301410"
     dimensions: [30, 14, 10]
     alternate_depths: [8.0, 6.0]
+    prices: [0, 0, 0, 0]
 
   - type: NormalBox
     supplier: ABC
     model: "MG-1"
     dimensions: [32, 22, 10]
     alternate_depths: [7.5, 5.0]
+    prices: [0, 0, 0, 0]
 
   - type: NormalBox
     supplier: ABC
     model: "362222"
     dimensions: [36, 22, 22]
+    prices: [0, 0, 0, 0]
 
   - type: NormalBox
     supplier: ABC
     model: "PR-3"
     dimensions: [12, 9, 9]
     alternate_depths: [7.0, 4.5]
+    prices: [0, 0, 0, 0]
 
   - type: NormalBox
     supplier: ABC
     model: "14148"
     dimensions: [14, 14, 8]
     alternate_depths: [6.0, 4.0]
+    prices: [0, 0, 0, 0]
 
   - type: NormalBox
     supplier: ABC
     model: "161212"
     dimensions: [16, 12, 12]
     alternate_depths: [10.0, 8.0, 6.0]
+    prices: [0, 0, 0, 0]
 
   - type: NormalBox
     supplier: ABC
     model: "17178"
     dimensions: [17, 17, 8]
+    prices: [0, 0, 0, 0]
 
   - type: NormalBox
     supplier: ABC
     model: "PR-8"
     dimensions: [18, 12, 12]
     alternate_depths: [9.5, 7.0]
+    prices: [0, 0, 0, 0]
 
   - type: NormalBox
     supplier: ABC
     model: "J-22"
     dimensions: [20, 15, 9]
     alternate_depths: [6.5, 4.0]
+    prices: [0, 0, 0, 0]
 
   - type: NormalBox
     supplier: ABC
     model: "UPS-2"
     dimensions: [24, 24, 17]
     alternate_depths: [20.0, 16.0]
+    prices: [0, 0, 0, 0]
 
   - type: NormalBox
     supplier: ABC
     model: "262020"
     dimensions: [26, 20, 20]
     alternate_depths: [18.0, 14.0, 10.0]
+    prices: [0, 0, 0, 0]
 
   - type: NormalBox
     supplier: ABC
     model: "JD-1"
     dimensions: [28, 12, 11]
     alternate_depths: [8.5, 6.0]
+    prices: [0, 0, 0, 0]

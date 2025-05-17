@@ -50,6 +50,73 @@
         .orange-row {
             background-color: #fce5cd !important;
         }
+        .normal-row {
+            background-color: rgba(135, 206, 250, 0.3) !important; /* Sky Blue */
+        }
+        .custom-row {
+            background-color: rgba(221, 160, 221, 0.3) !important; /* Plum */
+        }
+        
+        /* Column-based color scheme */
+        
+        /* Box price column - Light blue */
+        td:nth-child(4) {
+            background-color: rgba(173, 216, 230, 0.3) !important; /* Light Blue */
+        }
+        
+        /* Standard group columns - Green hues */
+        .standard-group {
+            background-color: rgba(144, 238, 144, 0.3) !important; /* Light Green */
+        }
+        
+        /* Fragile group columns - Gold/Yellow hues */
+        .fragile-group {
+            background-color: rgba(255, 215, 0, 0.3) !important; /* Gold */
+        }
+        
+        /* Custom group columns - Pink/Red hues */
+        .custom-group {
+            background-color: rgba(255, 182, 193, 0.3) !important; /* Light Pink */
+        }
+        
+        /* Location column - Light gray */
+        td:nth-last-child(2) {
+            background-color: rgba(211, 211, 211, 0.3) !important; /* Light Gray */
+        }
+        
+        /* Actions column - Very light gray */
+        td:last-child {
+            background-color: rgba(245, 245, 245, 0.3) !important; /* White Smoke */
+        }
+        
+        /* Row specific colors - add a slight tint to show row grouping */
+        .blue-row td {
+            box-shadow: inset 0 0 0 1000px rgba(135, 206, 250, 0.1) !important; /* Sky Blue tint */
+        }
+        
+        .yellow-row td {
+            box-shadow: inset 0 0 0 1000px rgba(255, 255, 224, 0.1) !important; /* Light Yellow tint */
+        }
+        
+        .green-row td {
+            box-shadow: inset 0 0 0 1000px rgba(152, 251, 152, 0.1) !important; /* Pale Green tint */
+        }
+        
+        .pink-row td {
+            box-shadow: inset 0 0 0 1000px rgba(255, 182, 193, 0.1) !important; /* Light Pink tint */
+        }
+        
+        .orange-row td {
+            box-shadow: inset 0 0 0 1000px rgba(255, 160, 122, 0.1) !important; /* Light Salmon tint */
+        }
+        
+        .normal-row td {
+            box-shadow: inset 0 0 0 1000px rgba(135, 206, 250, 0.1) !important; /* Sky Blue tint */
+        }
+        
+        .custom-row td {
+            box-shadow: inset 0 0 0 1000px rgba(221, 160, 221, 0.1) !important; /* Plum tint */
+        }
         .changes-pending {
             background-color: #ffe0e0;
         }
@@ -108,6 +175,63 @@
         input[type="number"] {
             -moz-appearance: textfield;
         }
+        
+        .total-cell {
+            font-weight: bold;
+            color: #495057;
+            cursor: not-allowed;
+            border-left: 1px solid rgba(0, 0, 0, 0.2) !important;
+            border-right: 1px solid rgba(0, 0, 0, 0.2) !important;
+        }
+        
+        /* Total cell specific colors - more saturated versions of column colors */
+        .standard-group.total-cell {
+            background-color: rgba(144, 238, 144, 0.6) !important; /* Light Green */
+            font-weight: bold;
+        }
+        .fragile-group.total-cell {
+            background-color: rgba(255, 215, 0, 0.6) !important; /* Gold */
+            font-weight: bold;
+        }
+        .custom-group.total-cell {
+            background-color: rgba(255, 182, 193, 0.6) !important; /* Light Pink */
+            font-weight: bold;
+        }
+        .group-header {
+            background-color: #e9ecef;
+            text-align: center;
+            font-weight: bold;
+        }
+        /* Header group colors - more saturated */
+        th.standard-group {
+            background-color: rgba(60, 179, 113, 0.6) !important; /* Medium Sea Green */
+            border-bottom: 1px solid rgba(0, 100, 0, 0.5);
+            color: white;
+        }
+        th.fragile-group {
+            background-color: rgba(218, 165, 32, 0.6) !important; /* Goldenrod */
+            border-bottom: 1px solid rgba(184, 134, 11, 0.5);
+            color: white;
+        }
+        th.custom-group {
+            background-color: rgba(205, 92, 92, 0.6) !important; /* Indian Red */
+            border-bottom: 1px solid rgba(139, 0, 0, 0.5);
+            color: white;
+        }
+        .undo-btn {
+            visibility: hidden;
+            cursor: pointer;
+            color: #6c757d;
+            font-size: 16px;
+            transition: color 0.2s;
+            text-align: center;
+        }
+        .undo-btn:hover {
+            color: #dc3545;
+        }
+        .show-undo {
+            visibility: visible;
+        }
     </style>
 </head>
 <body>
@@ -129,18 +253,8 @@
         <div id="statusMessage" class="status-message" style="display: none;"></div>
         
         <table id="priceTable" class="display responsive nowrap" style="width:100%">
-            <thead>
-                <tr>
-                    <th>Section</th>
-                    <th>Model</th>
-                    <th>Dimensions</th>
-                    <th>Box Price</th>
-                    <th>Standard</th>
-                    <th>Fragile</th>
-                    <th>Custom</th>
-                    <th>Location</th>
-                    <th>Actions</th>
-                </tr>
+            <thead id="priceTableHeader">
+                <!-- Header will be built dynamically based on pricing mode -->
             </thead>
             <tbody>
                 <!-- Data will be loaded dynamically -->
@@ -153,6 +267,7 @@
     <script src="https://cdn.datatables.net/buttons/2.2.2/js/dataTables.buttons.min.js"></script>
     <script src="https://cdn.datatables.net/select/1.3.4/js/dataTables.select.min.js"></script>
     <script src="https://cdn.datatables.net/responsive/2.2.9/js/dataTables.responsive.min.js"></script>
+    <script src="/pricing.js"></script>
     <script>
     $(document).ready(function() {
         // Extract store number from URL and create the back link
@@ -165,6 +280,7 @@
         let changedData = {};
         let changeCount = 0;
         let isEditable = false; // Default to read-only
+        let pricingMode = 'standard'; // Default pricing mode
         let priceTable;
 
         // Generate a simple CSRF token for this session
@@ -202,37 +318,76 @@
             }
         }
         
-        // First check if store is editable
+        // We've moved this check to be combined with pricing mode check
+        
+        // First check pricing mode and editability
         $.ajax({
-            url: '/api/store/' + storeId + '/is_editable',
+            url: '/api/store/' + storeId + '/pricing_mode',
             method: 'GET',
             success: function(response) {
-                isEditable = response.editable;
+                pricingMode = response.mode;
                 
-                // Update UI based on editability
-                if (!isEditable) {
-                    $('#readOnlyMessage').show();
-                    $('#editInstructions').hide();
-                    $('#saveChanges').prop('disabled', true);
-                }
-                
-                // Load box data next
-                loadBoxData();
+                // Next check if store is editable
+                $.ajax({
+                    url: '/api/store/' + storeId + '/is_editable',
+                    method: 'GET',
+                    success: function(response) {
+                        isEditable = response.editable;
+                        
+                        // Update UI based on editability
+                        if (!isEditable) {
+                            $('#readOnlyMessage').show();
+                            $('#editInstructions').hide();
+                            $('#saveChanges').prop('disabled', true);
+                        }
+                        
+                        // Load box data next
+                        loadBoxData();
+                    },
+                    error: function() {
+                        showStatus('Failed to check if store is editable', 'error');
+                        // Still load the data even if check fails
+                        loadBoxData();
+                    }
+                });
             },
             error: function() {
-                showStatus('Failed to check if store is editable', 'error');
-                // Still load the data even if check fails
-                loadBoxData();
+                showStatus('Failed to check pricing mode, defaulting to standard', 'error');
+                // Continue with the editability check even if pricing mode check fails
+                $.ajax({
+                    url: '/api/store/' + storeId + '/is_editable',
+                    method: 'GET',
+                    success: function(response) {
+                        isEditable = response.editable;
+                        
+                        // Update UI based on editability
+                        if (!isEditable) {
+                            $('#readOnlyMessage').show();
+                            $('#editInstructions').hide();
+                            $('#saveChanges').prop('disabled', true);
+                        }
+                        
+                        // Load box data next
+                        loadBoxData();
+                    },
+                    error: function() {
+                        showStatus('Failed to check if store is editable', 'error');
+                        // Still load the data even if check fails
+                        loadBoxData();
+                    }
+                });
             }
         });
         
         // Function to load box data
         function loadBoxData() {
             $.ajax({
-                url: '/api/store/' + storeId + '/boxes_with_sections',
+                url: '/api/store/' + storeId + '/all_boxes',
                 method: 'GET',
-                success: function(data) {
-                    initializeDataTable(data);
+                success: function(response) {
+                    // Process the boxes into the format needed for the table
+                    const processedData = processBoxesData(response.boxes, response.pricing_mode);
+                    initializeDataTable(processedData);
                 },
                 error: function() {
                     showStatus('Failed to load box data', 'error');
@@ -240,14 +395,168 @@
             });
         }
         
+        // Function to process boxes data into table format
+        function processBoxesData(boxes, mode) {
+            const result = [];
+            
+            for (const box of boxes) {
+                const model = box.model || '';
+                const dimensions = box.dimensions.join('x');
+                const section = getBoxSection(model, box.type);
+                
+                let boxData;
+                
+                if (mode === 'standard') {
+                    const prices = box.prices || [0, 0, 0, 0];
+                    boxData = {
+                        section: section,
+                        model: model,
+                        dimensions: dimensions,
+                        box_price: prices[0],
+                        standard: prices[1],
+                        fragile: prices[2],
+                        custom: prices[3],
+                        location: box.location || '???',
+                        pricing_mode: 'standard'
+                    };
+                } else { // itemized pricing mode
+                    const ip = box['itemized-prices'] || {};
+                    const boxPrice = ip['box-price'] || 0;
+                    
+                    // Standard level
+                    const standardMaterials = ip['standard-materials'] || 0;
+                    const standardServices = ip['standard-services'] || 0;
+                    const standardTotal = boxPrice + standardMaterials + standardServices;
+                    
+                    // Fragile level
+                    const fragileMaterials = ip['fragile-materials'] || 0;
+                    const fragileServices = ip['fragile-services'] || 0;
+                    const fragileTotal = boxPrice + fragileMaterials + fragileServices;
+                    
+                    // Custom level
+                    const customMaterials = ip['custom-materials'] || 0;
+                    const customServices = ip['custom-services'] || 0;
+                    const customTotal = boxPrice + customMaterials + customServices;
+                    
+                    boxData = {
+                        section: section,
+                        model: model,
+                        dimensions: dimensions,
+                        box_price: boxPrice,
+                        standard_materials: standardMaterials,
+                        standard_services: standardServices,
+                        standard_total: standardTotal,
+                        fragile_materials: fragileMaterials,
+                        fragile_services: fragileServices,
+                        fragile_total: fragileTotal,
+                        custom_materials: customMaterials,
+                        custom_services: customServices,
+                        custom_total: customTotal,
+                        location: box.location || '???',
+                        pricing_mode: 'itemized'
+                    };
+                }
+                
+                result.push(boxData);
+            }
+            
+            // Sort by section and then by model
+            result.sort((a, b) => {
+                if (a.section !== b.section) {
+                    return a.section.localeCompare(b.section);
+                }
+                return a.model.localeCompare(b.model);
+            });
+            
+            return result;
+        }
+        
+        // Function to determine box section based on model or box type
+        function getBoxSection(model, boxType) {
+            // First try to categorize based on model if it exists
+            if (model && model !== '') {
+                if (/C-UPS$|C$|Cube$/.test(model)) {
+                    return "CUBE";
+                } else if (/X 4|X 3|X 6|J-11|J-14|J-15|J-16|SHIRTB/.test(model)) {
+                    return "FLAT & SMALL";
+                } else if (/J-20|WREATH|ST-6|MIR-3|MIR-8/.test(model)) {
+                    return "MEDIUM";
+                } else if (/J-64|SUITCASE|VCR|24 X 18 X 18/.test(model)) {
+                    return "LARGE";
+                } else {
+                    return "SPECIALTY";
+                }
+            }
+            
+            // If no model or couldn't categorize, use box type
+            if (boxType) {
+                if (boxType === 'NormalBox') {
+                    return "NORMAL";
+                } else if (boxType === 'CustomBox') {
+                    return "CUSTOM";
+                }
+            }
+            
+            // Fallback
+            return "OTHER";
+        }
+        
         // Function to initialize the DataTable
         function initializeDataTable(data) {
-            priceTable = $('#priceTable').DataTable({
-                data: data,
-                columns: [
-                    { data: 'section' },
-                    { data: 'model' },
-                    { data: 'dimensions' },
+            // First, check if a DataTable already exists and destroy it
+            if (priceTable) {
+                priceTable.destroy();
+            }
+            
+            // Clear the table header completely
+            const $tableHeader = $('#priceTableHeader');
+            $tableHeader.empty();
+            
+            // Determine if model and location columns should be shown
+            const firstItem = data[0] || {};
+            
+            // Check if models are auto-generated from dimensions or actually present in the data
+            const hasRealModels = data.some(item => {
+                // If model starts with "Unknown-" it's likely auto-generated
+                return item.model && item.model !== '' && !item.model.startsWith('Unknown-');
+            });
+            
+            const hasLocations = data.some(item => item.location && item.location !== '???');
+            
+            // Base columns - section and dimensions always shown
+            const columns = [
+                { data: 'section' },
+                { data: 'dimensions' }
+            ];
+            
+            // Conditionally add model column only if real (non-auto-generated) models exist
+            if (hasRealModels) {
+                columns.splice(1, 0, { data: 'model' });
+            }
+            
+            // Add appropriate header structure based on pricing mode
+            if (pricingMode === 'standard') {
+                // Standard pricing mode: simple header
+                const headerRow = $('<tr></tr>');
+                
+                // Add basic columns
+                headerRow.append('<th>Section</th>');
+                if (hasRealModels) {
+                    headerRow.append('<th>Model</th>');
+                }
+                headerRow.append('<th>Dimensions</th>');
+                headerRow.append('<th>Box Price</th>');
+                headerRow.append('<th>Standard</th>');
+                headerRow.append('<th>Fragile</th>');
+                headerRow.append('<th>Custom</th>');
+                if (hasLocations) {
+                    headerRow.append('<th>Location</th>');
+                }
+                headerRow.append('<th>Actions</th>');
+                
+                $tableHeader.append(headerRow);
+                
+                columns.push(
                     { 
                         data: 'box_price',
                         render: function(data) {
@@ -275,28 +584,169 @@
                             return parseFloat(data).toFixed(2);
                         },
                         className: 'editable'
-                    },
-                    { data: 'location' },
-                    {
-                        data: null,
-                        defaultContent: '<button class="reset-btn">Reset</button>',
-                        orderable: false
                     }
-                ],
+                );
+            } else {
+                // Itemized pricing mode: complex header with groups
+                
+                // First row with group headers
+                const groupHeaderRow = $('<tr></tr>');
+                
+                // Common columns (span 2 rows)
+                groupHeaderRow.append('<th rowspan="2">Section</th>');
+                if (hasRealModels) {
+                    groupHeaderRow.append('<th rowspan="2">Model</th>');
+                }
+                groupHeaderRow.append('<th rowspan="2">Dimensions</th>');
+                groupHeaderRow.append('<th rowspan="2">Box Price</th>');
+                
+                // Add group headers for each packing level
+                groupHeaderRow.append('<th colspan="3" class="group-header standard-group">Standard Packing</th>');
+                groupHeaderRow.append('<th colspan="3" class="group-header fragile-group">Fragile Packing</th>');
+                groupHeaderRow.append('<th colspan="3" class="group-header custom-group">Custom Packing</th>');
+                
+                // Common columns at the end
+                if (hasLocations) {
+                    groupHeaderRow.append('<th rowspan="2">Location</th>');
+                }
+                groupHeaderRow.append('<th rowspan="2">Actions</th>');
+                
+                // Second row with individual column headers
+                const detailHeaderRow = $('<tr></tr>');
+                
+                // Standard group columns
+                detailHeaderRow.append('<th class="standard-group">Materials</th>');
+                detailHeaderRow.append('<th class="standard-group">Services</th>');
+                detailHeaderRow.append('<th class="standard-group">Total</th>');
+                
+                // Fragile group columns
+                detailHeaderRow.append('<th class="fragile-group">Materials</th>');
+                detailHeaderRow.append('<th class="fragile-group">Services</th>');
+                detailHeaderRow.append('<th class="fragile-group">Total</th>');
+                
+                // Custom group columns
+                detailHeaderRow.append('<th class="custom-group">Materials</th>');
+                detailHeaderRow.append('<th class="custom-group">Services</th>');
+                detailHeaderRow.append('<th class="custom-group">Total</th>');
+                
+                // Add both rows to the header
+                $tableHeader.append(groupHeaderRow);
+                $tableHeader.append(detailHeaderRow);
+                
+                columns.push(
+                    { 
+                        data: 'box_price',
+                        render: function(data) {
+                            return parseFloat(data).toFixed(2);
+                        },
+                        className: 'editable'
+                    },
+                    // Standard level
+                    { 
+                        data: 'standard_materials',
+                        render: function(data) {
+                            return parseFloat(data).toFixed(2);
+                        },
+                        className: 'editable standard-group'
+                    },
+                    { 
+                        data: 'standard_services',
+                        render: function(data) {
+                            return parseFloat(data).toFixed(2);
+                        },
+                        className: 'editable standard-group'
+                    },
+                    { 
+                        data: 'standard_total',
+                        render: function(data) {
+                            return parseFloat(data).toFixed(2);
+                        },
+                        className: 'total-cell standard-group'
+                    },
+                    // Fragile level
+                    { 
+                        data: 'fragile_materials',
+                        render: function(data) {
+                            return parseFloat(data).toFixed(2);
+                        },
+                        className: 'editable fragile-group'
+                    },
+                    { 
+                        data: 'fragile_services',
+                        render: function(data) {
+                            return parseFloat(data).toFixed(2);
+                        },
+                        className: 'editable fragile-group'
+                    },
+                    { 
+                        data: 'fragile_total',
+                        render: function(data) {
+                            return parseFloat(data).toFixed(2);
+                        },
+                        className: 'total-cell fragile-group'
+                    },
+                    // Custom level
+                    { 
+                        data: 'custom_materials',
+                        render: function(data) {
+                            return parseFloat(data).toFixed(2);
+                        },
+                        className: 'editable custom-group'
+                    },
+                    { 
+                        data: 'custom_services',
+                        render: function(data) {
+                            return parseFloat(data).toFixed(2);
+                        },
+                        className: 'editable custom-group'
+                    },
+                    { 
+                        data: 'custom_total',
+                        render: function(data) {
+                            return parseFloat(data).toFixed(2);
+                        },
+                        className: 'total-cell custom-group'
+                    }
+                );
+            }
+            
+            // Add location column conditionally
+            if (hasLocations) {
+                columns.push({ data: 'location' });
+            }
+            
+            // Always add actions column
+            columns.push({
+                data: null,
+                render: function(data, type, row) {
+                    return '<span class="undo-btn">↺</span>';
+                },
+                className: 'text-center',
+                orderable: false
+            });
+            
+            // Initialize the DataTable with the appropriate columns
+            priceTable = $('#priceTable').DataTable({
+                data: data,
+                columns: columns,
                 paging: false,
                 responsive: true,
                 rowCallback: function(row, data) {
                     // Apply classes based on section
-                    if (data.section === 'CUBE BOXES') {
+                    if (data.section === 'CUBE') {
                         $(row).addClass('blue-row');
-                    } else if (data.section === 'FLAT & SMALL BOXES') {
+                    } else if (data.section === 'FLAT & SMALL') {
                         $(row).addClass('yellow-row');
-                    } else if (data.section === 'MEDIUM BOXES') {
+                    } else if (data.section === 'MEDIUM') {
                         $(row).addClass('green-row');
-                    } else if (data.section === 'LARGE BOXES') {
+                    } else if (data.section === 'LARGE') {
                         $(row).addClass('pink-row');
-                    } else if (data.section === 'SPECIALTY BOXES') {
+                    } else if (data.section === 'SPECIALTY') {
                         $(row).addClass('orange-row');
+                    } else if (data.section === 'NORMAL') {
+                        $(row).addClass('normal-row');
+                    } else if (data.section === 'CUSTOM') {
+                        $(row).addClass('custom-row');
                     }
                 }
             });
@@ -359,24 +809,123 @@
                     // Valid number that has changed
                     cell.text(newValue.toFixed(2));
                     
-                    // Determine which price field to update
-                    let priceIndex;
-                    switch(columnName) {
-                        case 'box price': priceIndex = 0; break;
-                        case 'standard': priceIndex = 1; break;
-                        case 'fragile': priceIndex = 2; break;
-                        case 'custom': priceIndex = 3; break;
-                        default: return; // Exit if column not recognized
-                    }
-                    
-                    // Track the change only if it's a new model or the value actually changed
+                    // Track the change
                     if (!changedData[row.model]) {
                         changedData[row.model] = {};
-                        changedData[row.model][priceIndex] = newValue;
                         changeCount++;
-                    } else if (changedData[row.model][priceIndex] !== newValue) {
-                        // Update existing change
-                        changedData[row.model][priceIndex] = newValue;
+                        
+                        // Show the undo button for this row
+                        const rowElement = cell.closest('tr');
+                        rowElement.find('.undo-btn').addClass('show-undo');
+                    }
+                    
+                    if (pricingMode === 'standard') {
+                        // Determine which price field to update for standard pricing
+                        let priceIndex;
+                        switch(columnName) {
+                            case 'box price': priceIndex = 0; break;
+                            case 'standard': priceIndex = 1; break;
+                            case 'fragile': priceIndex = 2; break;
+                            case 'custom': priceIndex = 3; break;
+                            default: return; // Exit if column not recognized
+                        }
+                        
+                        if (priceIndex !== undefined) {
+                            changedData[row.model][priceIndex] = newValue;
+                        }
+                    } else {
+                        // For itemized pricing, we store the actual field name
+                        let fieldName;
+                        let packingLevel = '';
+                        
+                        switch(columnName) {
+                            case 'box price': 
+                                fieldName = 'box-price'; 
+                                packingLevel = 'all'; // Box price affects all totals
+                                break;
+                            case 'materials': 
+                                if (columnIndex === 4) {
+                                    fieldName = 'standard-materials';
+                                    packingLevel = 'standard';
+                                }
+                                else if (columnIndex === 7) {
+                                    fieldName = 'fragile-materials';
+                                    packingLevel = 'fragile';
+                                }
+                                else if (columnIndex === 10) {
+                                    fieldName = 'custom-materials';
+                                    packingLevel = 'custom';
+                                }
+                                break;
+                            case 'services': 
+                                if (columnIndex === 5) {
+                                    fieldName = 'standard-services';
+                                    packingLevel = 'standard';
+                                }
+                                else if (columnIndex === 8) {
+                                    fieldName = 'fragile-services';
+                                    packingLevel = 'fragile';
+                                }
+                                else if (columnIndex === 11) {
+                                    fieldName = 'custom-services';
+                                    packingLevel = 'custom';
+                                }
+                                break;
+                        }
+                        
+                        if (fieldName) {
+                            console.log("Updating", row.model, fieldName, newValue);
+                            changedData[row.model][fieldName] = newValue;
+                            
+                            // Find this row in the table
+                            const rowElement = cell.closest('tr');
+                            const rowIndex = priceTable.row(rowElement).index();
+                            
+                            // Get the current box price
+                            let boxPrice = parseFloat(priceTable.cell(rowIndex, 3).data());
+                            
+                            // Update cell data with new value
+                            priceTable.cell(cell).data(newValue);
+                            
+                            // If box price changed, update it directly
+                            if (fieldName === 'box-price') {
+                                boxPrice = newValue;
+                            }
+                            
+                            // Update totals based on which field changed
+                            if (packingLevel === 'all' || packingLevel === 'standard') {
+                                // Update standard total
+                                const stdMaterials = parseFloat(priceTable.cell(rowIndex, 4).data());
+                                const stdServices = parseFloat(priceTable.cell(rowIndex, 5).data());
+                                const stdTotal = boxPrice + stdMaterials + stdServices;
+                                
+                                // Update the total cell
+                                priceTable.cell(rowIndex, 6).data(parseFloat(stdTotal).toFixed(2));
+                            }
+                            
+                            if (packingLevel === 'all' || packingLevel === 'fragile') {
+                                // Update fragile total
+                                const fragMaterials = parseFloat(priceTable.cell(rowIndex, 7).data());
+                                const fragServices = parseFloat(priceTable.cell(rowIndex, 8).data());
+                                const fragTotal = boxPrice + fragMaterials + fragServices;
+                                
+                                // Update the total cell
+                                priceTable.cell(rowIndex, 9).data(parseFloat(fragTotal).toFixed(2));
+                            }
+                            
+                            if (packingLevel === 'all' || packingLevel === 'custom') {
+                                // Update custom total
+                                const custMaterials = parseFloat(priceTable.cell(rowIndex, 10).data());
+                                const custServices = parseFloat(priceTable.cell(rowIndex, 11).data());
+                                const custTotal = boxPrice + custMaterials + custServices;
+                                
+                                // Update the total cell
+                                priceTable.cell(rowIndex, 12).data(parseFloat(custTotal).toFixed(2));
+                            }
+                            
+                            // Redraw the row to show updated values
+                            priceTable.row(rowIndex).invalidate().draw(false);
+                        }
                     }
                     
                     updateChangeCounter();
@@ -404,15 +953,16 @@
                 });
             });
             
-            // Reset button handler
-            $('#priceTable').on('click', '.reset-btn', function() {
+            // Undo button handler
+            $('#priceTable').on('click', '.undo-btn', function() {
                 // Skip if store is not editable
                 if (!isEditable) {
                     showStatus('This store is read-only. Set editable: true in the YAML file to enable editing.', 'error');
                     return;
                 }
                 
-                const row = priceTable.row($(this).closest('tr')).data();
+                const rowElement = $(this).closest('tr');
+                const row = priceTable.row(rowElement).data();
                 const model = row.model;
                 
                 if (changedData[model]) {
@@ -420,7 +970,9 @@
                     changeCount--;
                     updateChangeCounter();
                     
-                    const rowElement = $(this).closest('tr');
+                    // Hide the undo button
+                    $(this).removeClass('show-undo');
+                    
                     const rowIndex = priceTable.row(rowElement).index();
                     
                     // Reload the row data
@@ -428,11 +980,38 @@
                         url: '/api/store/' + storeId + '/box/' + encodeURIComponent(model),
                         method: 'GET',
                         success: function(data) {
-                            // Update the table with original values
-                            priceTable.cell(rowIndex, 3).data(parseFloat(data.prices[0]).toFixed(2));
-                            priceTable.cell(rowIndex, 4).data(parseFloat(data.prices[1]).toFixed(2));
-                            priceTable.cell(rowIndex, 5).data(parseFloat(data.prices[2]).toFixed(2));
-                            priceTable.cell(rowIndex, 6).data(parseFloat(data.prices[3]).toFixed(2));
+                            // Update the table with original values based on pricing mode
+                            if (pricingMode === 'standard') {
+                                // Standard pricing mode
+                                priceTable.cell(rowIndex, 3).data(parseFloat(data.prices[0]).toFixed(2));
+                                priceTable.cell(rowIndex, 4).data(parseFloat(data.prices[1]).toFixed(2));
+                                priceTable.cell(rowIndex, 5).data(parseFloat(data.prices[2]).toFixed(2));
+                                priceTable.cell(rowIndex, 6).data(parseFloat(data.prices[3]).toFixed(2));
+                            } else {
+                                // Itemized pricing mode
+                                const ip = data['itemized-prices'] || {};
+                                
+                                // Box price (common)
+                                priceTable.cell(rowIndex, 3).data(parseFloat(ip['box-price'] || 0).toFixed(2));
+                                
+                                // Standard level
+                                priceTable.cell(rowIndex, 4).data(parseFloat(ip['standard-materials'] || 0).toFixed(2));
+                                priceTable.cell(rowIndex, 5).data(parseFloat(ip['standard-services'] || 0).toFixed(2));
+                                const standardTotal = (ip['box-price'] || 0) + (ip['standard-materials'] || 0) + (ip['standard-services'] || 0);
+                                priceTable.cell(rowIndex, 6).data(parseFloat(standardTotal).toFixed(2));
+                                
+                                // Fragile level
+                                priceTable.cell(rowIndex, 7).data(parseFloat(ip['fragile-materials'] || 0).toFixed(2));
+                                priceTable.cell(rowIndex, 8).data(parseFloat(ip['fragile-services'] || 0).toFixed(2));
+                                const fragileTotal = (ip['box-price'] || 0) + (ip['fragile-materials'] || 0) + (ip['fragile-services'] || 0);
+                                priceTable.cell(rowIndex, 9).data(parseFloat(fragileTotal).toFixed(2));
+                                
+                                // Custom level
+                                priceTable.cell(rowIndex, 10).data(parseFloat(ip['custom-materials'] || 0).toFixed(2));
+                                priceTable.cell(rowIndex, 11).data(parseFloat(ip['custom-services'] || 0).toFixed(2));
+                                const customTotal = (ip['box-price'] || 0) + (ip['custom-materials'] || 0) + (ip['custom-services'] || 0);
+                                priceTable.cell(rowIndex, 12).data(parseFloat(customTotal).toFixed(2));
+                            }
                             
                             showStatus('Reset changes for ' + model, 'success');
                         },
@@ -454,8 +1033,16 @@
                 if (changeCount > 0) {
                     showStatus('Saving changes...', 'loading');
                     
+                    // Debug log the changes
+                    console.log("Changes to be saved:", JSON.stringify(changedData, null, 2));
+                    
+                    // Determine the endpoint based on pricing mode
+                    const endpoint = pricingMode === 'standard' 
+                        ? '/api/store/' + storeId + '/update_prices'
+                        : '/api/store/' + storeId + '/update_itemized_prices';
+                    
                     $.ajax({
-                        url: '/api/store/' + storeId + '/update_prices',
+                        url: endpoint,
                         method: 'POST',
                         contentType: 'application/json',
                         headers: {
