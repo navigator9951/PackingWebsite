@@ -7,6 +7,7 @@
     <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/buttons/2.2.2/css/buttons.dataTables.min.css">
     <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/select/1.3.4/css/select.dataTables.min.css">
     <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/responsive/2.2.9/css/responsive.dataTables.min.css">
+    <link rel="stylesheet" type="text/css" href="/assets/css/print.css">
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -55,6 +56,22 @@
         }
         .custom-row {
             background-color: rgba(221, 160, 221, 0.3) !important; /* Plum */
+        }
+        
+        /* Print button styles */
+        .print-button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-left: 10px;
+        }
+        
+        .print-button:hover {
+            background-color: #45a049;
         }
         
         /* Column-based color scheme */
@@ -259,6 +276,188 @@
         th img {
             cursor: help;
         }
+        
+        /* Print-specific styles */
+        @media print {
+            /* Remove all potential hiding */
+            table.dataTable thead th {
+                display: table-cell !important;
+                visibility: visible !important;
+            }
+            
+            /* Force ALL icons to be visible */
+            table.dataTable thead th img {
+                display: inline-block !important;
+                visibility: visible !important;
+                width: 14px !important;
+                height: 14px !important;
+            }
+            
+            /* Override any inherited hiding */
+            .custom-group {
+                display: table-cell !important;
+                visibility: visible !important;
+            }
+            
+            .custom-group img {
+                display: inline-block !important;
+                visibility: visible !important;
+            }
+            /* Hide interactive UI elements */
+            .buttons-container,
+            .status-message,
+            #backLink,
+            #editInstructions,
+            #readOnlyMessage,
+            .undo-btn,
+            .dataTables_length,
+            .dataTables_filter,
+            .dataTables_info,
+            .dataTables_paginate {
+                display: none !important;
+            }
+            
+            /* Hide the entire header section */
+            .header {
+                display: none !important;
+            }
+            
+            /* Make table full width */
+            table.dataTable {
+                width: 100% !important;
+                page-break-inside: auto;
+                font-size: 10pt;
+            }
+            
+            /* Compact table spacing for portrait mode */
+            table.dataTable th,
+            table.dataTable td {
+                padding: 3px 5px !important;
+                font-size: 9pt;
+            }
+            
+            /* Make headers smaller */
+            table.dataTable th {
+                font-size: 8pt;
+                font-weight: bold;
+            }
+            
+            /* Section headers smaller */
+            .section-header {
+                font-size: 11pt !important;
+                padding: 4px 8px !important;
+            }
+            
+            /* Keep table rows together */
+            table.dataTable tr {
+                page-break-inside: avoid;
+                page-break-after: auto;
+            }
+            
+            /* Hide Location and Actions columns - only those with rowspan="2" */
+            /* First row: only headers that have rowspan="2" AND are last two */
+            table.dataTable thead tr:first-child th[rowspan="2"]:nth-last-child(1),
+            table.dataTable thead tr:first-child th[rowspan="2"]:nth-last-child(2) {
+                display: none !important;
+            }
+            
+            /* No need to hide anything in second row - the icon cells are all valid */
+            
+            /* Data cells */
+            table.dataTable tbody tr td:last-child,
+            table.dataTable tbody tr td:nth-last-child(2) {
+                display: none !important;
+            }
+            
+            /* Hide DataTables sorting arrows and indicators */
+            table.dataTable thead .sorting::before,
+            table.dataTable thead .sorting::after,
+            table.dataTable thead .sorting_asc::before,
+            table.dataTable thead .sorting_asc::after,
+            table.dataTable thead .sorting_desc::before,
+            table.dataTable thead .sorting_desc::after,
+            table.dataTable thead .sorting_asc_disabled::before,
+            table.dataTable thead .sorting_asc_disabled::after,
+            table.dataTable thead .sorting_desc_disabled::before,
+            table.dataTable thead .sorting_desc_disabled::after {
+                display: none !important;
+                content: none !important;
+            }
+            
+            /* Remove sorting classes entirely to prevent any styling */
+            table.dataTable thead th.sorting,
+            table.dataTable thead th.sorting_asc,
+            table.dataTable thead th.sorting_desc {
+                background-image: none !important;
+                cursor: default !important;
+                position: relative !important;
+            }
+            
+            /* DataTables 1.11 specific */
+            table.dataTable thead th.sorting:before,
+            table.dataTable thead th.sorting:after,
+            table.dataTable thead th.sorting_asc:before,
+            table.dataTable thead th.sorting_asc:after,
+            table.dataTable thead th.sorting_desc:before,
+            table.dataTable thead th.sorting_desc:after {
+                display: none !important;
+                content: "" !important;
+            }
+            
+            /* Ensure colors are preserved */
+            * {
+                color-adjust: exact !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            
+            /* Adjust body margins for print */
+            body {
+                margin: 0.4in;
+                font-size: 11pt;
+            }
+            
+            /* Ensure section headers stay with their tables */
+            .section-header {
+                page-break-after: avoid;
+            }
+            
+            /* Keep icons visible in print */
+            th img {
+                width: 14px !important;
+                height: 14px !important;
+                display: inline-block !important;
+                visibility: visible !important;
+            }
+            
+            /* Ensure all header images and cells are visible by default */
+            table.dataTable thead tr th {
+                display: table-cell !important;
+            }
+            
+            table.dataTable thead tr th img {
+                display: inline-block !important;
+                visibility: visible !important;
+            }
+            
+            /* For the second row specifically, ensure all icons are visible */
+            table.dataTable thead tr:nth-child(2) th {
+                display: table-cell !important;
+            }
+            
+            table.dataTable thead tr:nth-child(2) th img {
+                display: inline-block !important;
+                visibility: visible !important;
+                width: 14px !important;
+                height: 14px !important;
+            }
+            
+            /* Adjust group headers for better spacing */
+            .group-header {
+                font-size: 9pt !important;
+                padding: 3px !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -275,6 +474,7 @@
         <div class="buttons-container">
             <button id="saveChanges" class="save-button" disabled>Save Changes</button>
             <span id="changeCount">No changes pending</span>
+            <button id="printView" class="print-button">Print View</button>
         </div>
         
         <div id="statusMessage" class="status-message" style="display: none;"></div>
@@ -715,7 +915,8 @@
             columns.push({
                 data: null,
                 render: function(data, type, row) {
-                    const classes = row.hasChanges ? 'undo-btn show-undo' : 'undo-btn';
+                    const hasChanges = changedData[row.model] !== undefined;
+                    const classes = hasChanges ? 'undo-btn show-undo' : 'undo-btn';
                     return '<span class="' + classes + '">↺</span>';
                 },
                 className: 'text-center',
@@ -792,8 +993,6 @@
                     delete changedData[rowData.model];
                     changeCount--;
                     
-                    // Remove the hasChanges flag
-                    rowData.hasChanges = false;
                     
                     // Reload original data for this row
                     const originalRow = originalData.find(r => r.model === rowData.model);
@@ -939,7 +1138,6 @@
                         const rowData = priceTable.row(rowIndex).data();
                         
                         // Mark row as having changes in the data
-                        rowData.hasChanges = true;
                         priceTable.row(rowIndex).data(rowData);
                         
                         // Force redraw the row to update the undo button
@@ -1102,12 +1300,21 @@
                             changedData = {};
                             changeCount = 0;
                             updateChangeCounter();
+                            
+                            // Force DataTables to re-render all cells and redraw  
+                            priceTable.rows().invalidate().draw();
                         })
                         .catch(error => {
                             console.error('Error saving changes:', error);
                             showStatus('Error saving changes: ' + error.message, 'error');
                         });
                 }
+            });
+            
+            // Print view button handler
+            $('#printView').on('click', function() {
+                // Just trigger the browser's print dialog for this page
+                window.print();
             });
         }
     });
