@@ -134,6 +134,239 @@
         .custom-row td {
             box-shadow: inset 0 0 0 1000px rgba(221, 160, 221, 0.1) !important; /* Plum tint */
         }
+        
+        /* Location cell styles */
+        .location-cell {
+            text-align: left; /* Changed to left alignment */
+            padding-left: 8px !important; /* Add left padding */
+            padding-right: 5px !important; /* Add right padding */
+            width: 104px !important; /* Exact space for 3 icons (32px each + 4px padding on sides) */
+            min-width: 104px !important; /* Ensure minimum width for the cell */
+            max-width: 104px !important; /* Ensure maximum width for the cell */
+        }
+        
+        .location-buttons {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start; /* Changed to left alignment */
+            gap: 4px; /* Compact spacing between icons */
+            width: 100%; /* Take full width of the cell */
+        }
+        
+        .location-btn {
+            background: none;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            padding: 3px;
+            cursor: pointer;
+            color: #666;
+            transition: all 0.2s;
+            width: 26px; /* Fixed width for consistent layout */
+            height: 26px; /* Fixed height for consistent layout */
+            flex: 0 0 26px; /* Prevent flex growth/shrink */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .location-btn:hover:not(:disabled):not([data-no-floorplan="true"]) {
+            background: #f5f5f5;
+            border-color: #999;
+            color: #333;
+        }
+        
+        .location-btn:disabled {
+            cursor: not-allowed;
+        }
+        
+        .location-btn svg {
+            display: block;
+        }
+        
+        .view-location {
+            color: #2196F3; /* Blue for view */
+        }
+        
+        .edit-location {
+            color: #4CAF50; /* Green for edit */
+        }
+        
+        .notes-location {
+            color: #FF9800; /* Orange for notes */
+        }
+        
+        /* We're not using the location-label in the compact layout */
+        .location-label {
+            display: none;
+        }
+        
+        /* Tooltip for notes */
+        .location-note-tooltip {
+            font-size: 12px;
+            max-width: 200px;
+            word-break: break-word;
+        }
+        
+        /* Location modal styles */
+        .location-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        
+        .location-modal {
+            background: white;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .modal-header h3 {
+            margin: 0;
+            font-size: 18px;
+            color: #333;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+        }
+        
+        .modal-close:hover {
+            background: #f5f5f5;
+            color: #333;
+        }
+        
+        .modal-body {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .modal-footer {
+            display: flex;
+            justify-content: space-between;
+            padding: 15px 20px;
+            border-top: 1px solid #eee;
+        }
+        
+        /* Floorplan viewer styles */
+        .floorplan-viewer {
+            position: relative;
+            width: 100%;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        .floorplan-container {
+            position: relative;
+            width: 100%;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .floorplan-image {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        
+        .marker-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        
+        .edit-mode .marker-layer {
+            pointer-events: auto;
+            cursor: crosshair;
+        }
+        
+        .location-marker {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            margin-left: -15px;
+            margin-top: -15px;
+            color: red;
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            line-height: 30px;
+            pointer-events: auto;
+            cursor: pointer;
+            text-shadow: 2px 2px 2px rgba(255,255,255,0.8);
+        }
+        
+        .marker-current {
+            color: red;
+            font-size: 28px;
+        }
+        
+        .location-label-input {
+            margin-top: 15px;
+        }
+        
+        .location-label-input label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .location-label-input input {
+            width: 100%;
+            max-width: 300px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .location-label-display {
+            margin-top: 15px;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 4px;
+        }
+        
+        .no-floorplan {
+            padding: 40px;
+            text-align: center;
+            background: #f5f5f5;
+            border-radius: 4px;
+        }
         .changes-pending {
             background-color: #ffe0e0;
         }
@@ -511,6 +744,7 @@
         let pricingMode = 'standard'; // Default pricing mode
         let priceTable;
         let originalData = []; // Store original data for undo functionality
+        let changedLocations = {}; // Store location changes separately
 
         // Generate a simple CSRF token for this session
         const csrfToken = Math.random().toString(36).substring(2, 15) +
@@ -522,15 +756,23 @@
             const $saveButton = $('#saveChanges');
             const $changeCount = $('#changeCount');
             
-            if (changeCount > 0) {
+            const locationChangeCount = Object.keys(changedLocations).length;
+            const totalChangeCount = changeCount + locationChangeCount;
+            
+            if (totalChangeCount > 0) {
                 $saveButton.prop('disabled', !isEditable);
-                $changeCount.text(changeCount + ' change' + (changeCount > 1 ? 's' : '') + ' pending');
+                $changeCount.text(totalChangeCount + ' change' + (totalChangeCount > 1 ? 's' : '') + ' pending');
                 $changeCount.addClass('changes-pending');
             } else {
                 $saveButton.prop('disabled', true);
                 $changeCount.text('No changes pending');
                 $changeCount.removeClass('changes-pending');
             }
+        }
+        
+        // Function to update location change counter
+        function updateLocationChangeCounter() {
+            updateChangeCounter();
         }
         
         // Function to show status message
@@ -908,7 +1150,67 @@
             
             // Add location column conditionally
             if (hasLocations) {
-                columns.push({ data: 'location' });
+                columns.push({
+                    data: 'location',
+                    render: function(data, type, row) {
+                        // Determine location status
+                        const hasCoords = data && typeof data === 'object' && data.coords && data.coords.length > 0;
+                        
+                        // Get label based on location type
+                        let label = '';
+                        let isTextBasedLocation = false;
+                        
+                        if (typeof data === 'string') {
+                            // Old-style string location
+                            label = data !== '???' ? data : '';
+                            isTextBasedLocation = data !== '???';
+                        } else if (data && typeof data === 'object') {
+                            // New dictionary format
+                            label = data.label || '';
+                            isTextBasedLocation = !hasCoords && label !== '';
+                        }
+                        
+                        return `
+                            <div class="location-buttons" style="justify-content: flex-start;">
+                                <!-- Eye icon - only active if box has coordinates -->
+                                <button class="location-btn view-location" 
+                                        data-model="${row.model}" 
+                                        ${!hasCoords ? 'disabled' : ''} 
+                                        title="${hasCoords ? 'View location on floorplan' : 'No coordinates set'}"
+                                        style="opacity: ${hasCoords ? '1' : '0.4'}">
+                                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                        <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z"/>
+                                        <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z"/>
+                                    </svg>
+                                </button>
+                                
+                                <!-- Pencil icon - always available if store has a floorplan -->
+                                <button class="location-btn edit-location" 
+                                        data-model="${row.model}" 
+                                        title="Edit location"
+                                        ${!window.hasFloorplan ? 'data-no-floorplan="true"' : ''}
+                                        style="opacity: ${window.hasFloorplan ? '1' : '0.4'}">
+                                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                        <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/>
+                                    </svg>
+                                </button>
+                                
+                                <!-- Notes icon - only for text-based locations with hover tooltip -->
+                                ${isTextBasedLocation ? `
+                                <button class="location-btn notes-location" 
+                                        data-content="${label}" 
+                                        title="Location notes: ${label}">
+                                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                        <path d="M5 10.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5zm0-2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm0-2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm0-2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5z"/>
+                                        <path d="M3 0h10a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2v-1h1v1a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v1H1V2a2 2 0 0 1 2-2z"/>
+                                        <path d="M1 5v-.5a.5.5 0 0 1 1 0V5h.5a.5.5 0 0 1 0 1h-2a.5.5 0 0 1 0-1H1zm0 3v-.5a.5.5 0 0 1 1 0V8h.5a.5.5 0 0 1 0 1h-2a.5.5 0 0 1 0-1H1zm0 3v-.5a.5.5 0 0 1 1 0v.5h.5a.5.5 0 0 1 0 1h-2a.5.5 0 0 1 0-1H1z"/>
+                                    </svg>
+                                </button>` : ''}
+                            </div>
+                        `;
+                    },
+                    className: 'location-cell'
+                });
             }
             
             // Always add actions column
@@ -1285,20 +1587,33 @@
                     return;
                 }
                 
-                if (changeCount > 0) {
+                const locationChangeCount = Object.keys(changedLocations).length;
+                const totalChangeCount = changeCount + locationChangeCount;
+                
+                if (totalChangeCount > 0) {
                     showStatus('Saving changes...', 'loading');
-                    
                     
                     // Use the appropriate update function based on pricing mode
                     const updateFunction = pricingMode === 'standard' 
                         ? window.api.updateStandardPrices
                         : window.api.updateItemizedPrices;
                     
-                    updateFunction(storeId, changedData, csrfToken)
+                    // Save price changes first
+                    const pricePromise = changeCount > 0 ? 
+                        updateFunction(storeId, changedData, csrfToken) : 
+                        Promise.resolve();
+                    
+                    // Save location changes
+                    const locationPromise = locationChangeCount > 0 ?
+                        window.api.updateLocations(storeId, changedLocations, csrfToken) :
+                        Promise.resolve();
+                    
+                    Promise.all([pricePromise, locationPromise])
                         .then(() => {
                             showStatus('All changes saved successfully!', 'success');
                             changedData = {};
                             changeCount = 0;
+                            changedLocations = {};
                             updateChangeCounter();
                             
                             // Force DataTables to re-render all cells and redraw  
@@ -1315,6 +1630,155 @@
             $('#printView').on('click', function() {
                 // Just trigger the browser's print dialog for this page
                 window.print();
+            });
+            
+            // Initialize floorplan status in the window object so it's accessible globally
+            window.hasFloorplan = false;
+            
+            // Check if store has a floorplan
+            fetch(`/api/store/${storeId}/floorplan`)
+                .then(response => {
+                    window.hasFloorplan = response.ok;
+                    console.log("Store has floorplan:", window.hasFloorplan);
+                    
+                    // Refresh the table to update the location buttons based on floorplan availability
+                    if (priceTable) {
+                        priceTable.rows().invalidate().draw();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking floorplan:', error);
+                    window.hasFloorplan = false;
+                });
+            
+            // Location button handlers
+            $(document).on('click', '.view-location', function(e) {
+                e.preventDefault();
+                if ($(this).hasClass('disabled')) return;
+                
+                const model = $(this).data('model');
+                const row = priceTable.row($(this).closest('tr')).data();
+                
+                import('/components/location-modal.js').then(module => {
+                    module.LocationModal.show({
+                        mode: 'view',
+                        storeId: storeId,
+                        boxModel: model,
+                        currentLocation: row.location
+                    });
+                }).catch(error => {
+                    console.error('Error loading location modal:', error);
+                    showStatus('Failed to load location viewer', 'error');
+                });
+            });
+            
+            $(document).on('click', '.edit-location', function(e) {
+                e.preventDefault();
+                
+                // Check if button is disabled or no floorplan is available
+                if ($(this).hasClass('disabled') || $(this).attr('data-no-floorplan') === 'true') {
+                    if (!window.hasFloorplan) {
+                        showStatus('No floorplan available for this store. Please upload a floorplan image first.', 'error');
+                    }
+                    return;
+                }
+                
+                const model = $(this).data('model');
+                const row = priceTable.row($(this).closest('tr')).data();
+                const $tr = $(this).closest('tr');
+                
+                import('/components/location-modal.js').then(module => {
+                    module.LocationModal.show({
+                        mode: 'edit',
+                        storeId: storeId,
+                        boxModel: model,
+                        currentLocation: row.location,
+                        onSave: (location, alreadySaved) => {
+                            // Only track as a change if not already saved to API
+                            if (!alreadySaved) {
+                                // Update the location data
+                                if (!changedLocations[model]) {
+                                    changedLocations[model] = {};
+                                }
+                                changedLocations[model] = location;
+                                
+                                // Enable save button
+                                $('#saveChanges').prop('disabled', false);
+                                updateLocationChangeCounter();
+                            }
+                            
+                            // Always update the row data to reflect changes
+                            row.location = location;
+                            priceTable.row($tr).data(row).draw();
+                            
+                            // Show a status message
+                            if (alreadySaved) {
+                                showStatus('Location saved successfully!', 'success');
+                            }
+                        },
+                        onClear: (alreadySaved) => {
+                            // Only track as a change if not already saved to API
+                            if (!alreadySaved) {
+                                // Clear the location
+                                if (!changedLocations[model]) {
+                                    changedLocations[model] = {};
+                                }
+                                changedLocations[model] = null;
+                                
+                                // Enable save button
+                                $('#saveChanges').prop('disabled', false);
+                                updateLocationChangeCounter();
+                            }
+                            
+                            // Always update the row data to reflect changes
+                            row.location = '???';
+                            priceTable.row($tr).data(row).draw();
+                            
+                            // Show a status message
+                            if (alreadySaved) {
+                                showStatus('Location removed successfully!', 'success');
+                            }
+                        }
+                    });
+                }).catch(error => {
+                    console.error('Error loading location modal:', error);
+                    showStatus('Failed to load location editor', 'error');
+                });
+            });
+            
+            // Add tooltip for notes icon
+            $(document).on('mouseenter', '.notes-location', function() {
+                const content = $(this).data('content');
+                if (!content) return;
+                
+                // Create tooltip element
+                const tooltip = $('<div class="location-note-tooltip"></div>')
+                    .text(content)
+                    .css({
+                        position: 'absolute',
+                        top: $(this).offset().top + $(this).height() + 5,
+                        left: $(this).offset().left,
+                        background: 'white',
+                        border: '1px solid #ccc',
+                        padding: '5px 10px',
+                        borderRadius: '4px',
+                        zIndex: 1000,
+                        boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+                        maxWidth: '250px',
+                        wordWrap: 'break-word'
+                    });
+                
+                $('body').append(tooltip);
+                
+                $(this).data('tooltip', tooltip);
+            });
+            
+            $(document).on('mouseleave', '.notes-location', function() {
+                const tooltip = $(this).data('tooltip');
+                if (tooltip) {
+                    tooltip.remove();
+                    $(this).removeData('tooltip');
+                }
             });
         }
     });
