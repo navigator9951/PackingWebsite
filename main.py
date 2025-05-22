@@ -4,12 +4,23 @@ import re
 from typing import Any, Dict, List, Optional, Union
 
 import yaml
-from fastapi import Body, FastAPI, HTTPException, Path, Request, File, UploadFile
+from fastapi import Body, FastAPI, HTTPException, Path, Request, File, UploadFile, Depends
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 import aiofiles
 import shutil
+
+from lib.auth_middleware import require_store_auth, get_current_store
+from lib.auth_manager import (
+    init_db, verify_store_password, create_session, 
+    create_store_auth, verify_session, delete_session,
+    hasAuth as store_has_auth
+)
+
+# Initialize the authentication database
+init_db()
 
 app = FastAPI()
 
@@ -76,13 +87,25 @@ async def location_script():
 
 @app.get("/favicon.ico", response_class=FileResponse)
 async def favicon():
-    return FileResponse("favicon.ico")
+    return FileResponse("assets/favicon.ico")
 
 # Define dynamic routes after static routes
 @app.get("/", response_class=HTMLResponse)
 async def root():
     # Default route will return 404
     raise HTTPException(status_code=404, detail="Not found")
+
+# Login page route
+@app.get("/{store_id}/login", response_class=HTMLResponse)
+async def login_page(store_id: str = Path(..., regex=r"^\d{1,4}$")):
+    # Check if the store's YAML file exists
+    yaml_file = f"stores/store{store_id}.yml"
+    if not os.path.exists(yaml_file):
+        raise HTTPException(status_code=404, detail=f"Store configuration not found for store {store_id}")
+        
+    # Load the login HTML
+    with open("login.html", "r") as f:
+        return HTMLResponse(f.read())
 
 # Catch-all pattern should be last to avoid conflicts
 @app.get("/{store_id}", response_class=HTMLResponse)
@@ -93,7 +116,7 @@ async def store_page(store_id: str = Path(..., regex=r"^\d{1,4}$")):
 @app.get("/{store_id}/price_editor", response_class=HTMLResponse)
 async def price_editor(store_id: str = Path(..., regex=r"^\d{1,4}$")):
     # Check if the store's YAML file exists
-    yaml_file = f"store{store_id}.yml"
+    yaml_file = f"stores/store{store_id}.yml"
     if not os.path.exists(yaml_file):
         raise HTTPException(status_code=404, detail=f"Store configuration not found for store {store_id}")
 
@@ -113,44 +136,26 @@ async def price_editor(store_id: str = Path(..., regex=r"^\d{1,4}$")):
 
     return HTMLResponse(content=html_content, headers=headers)
 
-# New route structure for admin pages
+# New route structure for admin pages - all protected by auth
 @app.get("/{store_id}/prices", response_class=HTMLResponse)
-async def prices_page(store_id: str = Path(..., regex=r"^\d{1,4}$")):
+async def prices_page(
+    store_id: str = Path(..., regex=r"^\d{1,4}$")
+):
     # Forward to existing price_editor for now
     # Eventually this will point to admin/prices/index.html
     return await price_editor(store_id)
 
-@app.get("/{store_id}/locations", response_class=HTMLResponse)
-async def locations_page(store_id: str = Path(..., regex=r"^\d{1,4}$")):
-    # Check if the store's YAML file exists
-    yaml_file = f"store{store_id}.yml"
-    if not os.path.exists(yaml_file):
-        raise HTTPException(status_code=404, detail=f"Store configuration not found for store {store_id}")
-
-    # Load the locations HTML
-    with open("locations.html", "r") as f:
-        return HTMLResponse(f.read())
-
 @app.get("/{store_id}/floorplan", response_class=HTMLResponse)
-async def floorplan_page(store_id: str = Path(..., regex=r"^\d{1,4}$")):
+async def floorplan_page(
+    store_id: str = Path(..., regex=r"^\d{1,4}$")
+):
     # Check if the store's YAML file exists
-    yaml_file = f"store{store_id}.yml"
+    yaml_file = f"stores/store{store_id}.yml"
     if not os.path.exists(yaml_file):
         raise HTTPException(status_code=404, detail=f"Store configuration not found for store {store_id}")
 
     # Load the floorplan HTML
     with open("floorplan.html", "r") as f:
-        return HTMLResponse(f.read())
-
-@app.get("/{store_id}/settings", response_class=HTMLResponse)
-async def settings_page(store_id: str = Path(..., regex=r"^\d{1,4}$")):
-    # Check if the store's YAML file exists
-    yaml_file = f"store{store_id}.yml"
-    if not os.path.exists(yaml_file):
-        raise HTTPException(status_code=404, detail=f"Store configuration not found for store {store_id}")
-
-    # Load the settings HTML
-    with open("settings.html", "r") as f:
         return HTMLResponse(f.read())
 
 @app.get("/api/store/{store_id}/pricing_mode", response_class=JSONResponse)
@@ -161,7 +166,7 @@ async def get_pricing_mode(store_id: str = Path(..., regex=r"^\d{1,4}$")):
 
 @app.get("/api/store/{store_id}/boxes", response_class=JSONResponse)
 async def get_boxes(store_id: str = Path(..., regex=r"^\d{1,4}$")):
-    yaml_file = f"store{store_id}.yml"
+    yaml_file = f"stores/store{store_id}.yml"
 
     if not os.path.exists(yaml_file):
         error_msg = f"Store configuration file not found at {yaml_file}"
@@ -259,7 +264,7 @@ async def get_boxes(store_id: str = Path(..., regex=r"^\d{1,4}$")):
 
 # Helper function to load and validate YAML
 def load_store_yaml(store_id: str):
-    yaml_file = f"store{store_id}.yml"
+    yaml_file = f"stores/store{store_id}.yml"
 
     if not os.path.exists(yaml_file):
         error_msg = f"Store configuration file not found at {yaml_file}"
@@ -279,15 +284,12 @@ def load_store_yaml(store_id: str):
         print(f"Error: {error_msg}")
         raise HTTPException(status_code=500, detail=error_msg)
 
-    # Set default editable flag if not present
-    if "editable" not in boxes_data:
-        boxes_data["editable"] = False
 
     return boxes_data
 
 # Helper function to save YAML data
 def save_store_yaml(store_id: str, data: dict):
-    yaml_file = f"store{store_id}.yml"
+    yaml_file = f"stores/store{store_id}.yml"
 
     try:
         # Custom YAML writing to maintain the desired format
@@ -296,10 +298,6 @@ def save_store_yaml(store_id: str, data: dict):
             if "pricing-mode" in data:
                 f.write(f"pricing-mode: {data['pricing-mode']}\n")
             
-            # Write editable flag at the top level
-            editable = data.get("editable", False)
-            f.write(f"editable: {str(editable).lower()}\n")
-
             f.write("boxes:\n")
 
             # Determine pricing mode
@@ -549,7 +547,8 @@ class ItemizedPriceUpdateRequest(BaseModel):
 @app.post("/api/store/{store_id}/update_prices", response_class=JSONResponse)
 async def update_prices(
     store_id: str = Path(..., regex=r"^\d{1,4}$"),
-    update_data: PriceUpdateRequest = Body(...)):
+    update_data: PriceUpdateRequest = Body(...),
+    auth_store_id: str = Depends(get_current_store)):
 
     # Extract data from the request
     changes = update_data.changes
@@ -566,9 +565,7 @@ async def update_prices(
     if pricing_mode != "standard":
         raise HTTPException(status_code=400, detail="This endpoint is for standard pricing mode only. Use /update_itemized_prices for itemized pricing.")
 
-    # Check if the store is editable
-    if not data.get("editable", False):
-        raise HTTPException(status_code=403, detail="This store is not editable. Set 'editable: true' in the store YAML file to enable editing.")
+    # Authentication check is handled by the auth_store_id dependency
 
     updated_count = 0
 
@@ -594,7 +591,7 @@ async def update_prices(
             if "model" not in box:
                 box["model"] = box_model
 
-    # Save the updated YAML file while preserving the editable flag
+    # Save the updated YAML file
     save_store_yaml(store_id, data)
 
     return {"message": f"Updated {updated_count} prices successfully"}
@@ -603,7 +600,8 @@ async def update_prices(
 @app.post("/api/store/{store_id}/update_itemized_prices", response_class=JSONResponse)
 async def update_itemized_prices(
     store_id: str = Path(..., regex=r"^\d{1,4}$"),
-    update_data: ItemizedPriceUpdateRequest = Body(...)):
+    update_data: ItemizedPriceUpdateRequest = Body(...),
+    auth_store_id: str = Depends(get_current_store)):
 
     # Extract data from the request
     changes = update_data.changes
@@ -620,9 +618,7 @@ async def update_itemized_prices(
     if pricing_mode != "itemized":
         raise HTTPException(status_code=400, detail="This endpoint is for itemized pricing mode only. Use /update_prices for standard pricing.")
 
-    # Check if the store is editable
-    if not data.get("editable", False):
-        raise HTTPException(status_code=403, detail="This store is not editable. Set 'editable: true' in the store YAML file to enable editing.")
+    # Authentication check is handled by the auth_store_id dependency
 
     updated_count = 0
 
@@ -660,19 +656,10 @@ async def update_itemized_prices(
             if "model" not in box:
                 box["model"] = box_model
 
-    # Save the updated YAML file while preserving the editable flag
+    # Save the updated YAML file
     save_store_yaml(store_id, data)
 
     return {"message": f"Updated {updated_count} itemized prices successfully"}
-
-class Comment(BaseModel):
-    text: str
-
-# Check if a store is editable
-@app.get("/api/store/{store_id}/is_editable", response_class=JSONResponse)
-async def is_store_editable(store_id: str = Path(..., regex=r"^\d{1,4}$")):
-    data = load_store_yaml(store_id)
-    return {"editable": data.get("editable", False)}
 
 class Comment(BaseModel):
     text: str
@@ -681,6 +668,73 @@ class Comment(BaseModel):
 async def save_comment(comment: Comment):
     with open("comments.txt", "a") as f:
         f.write(comment.text + "\n")
+
+# Authentication API Models
+class LoginRequest(BaseModel):
+    password: str
+    remember_me: bool = False
+
+class TokenResponse(BaseModel):
+    token: str
+    
+# Authentication API endpoints
+@app.post("/api/store/{store_id}/login", response_model=TokenResponse)
+async def login(
+    store_id: str = Path(..., regex=r"^\d{1,4}$"),
+    login_data: LoginRequest = Body(...)
+):
+    # Check if store exists
+    yaml_file = f"stores/store{store_id}.yml"
+    if not os.path.exists(yaml_file):
+        raise HTTPException(status_code=404, detail=f"Store not found: {store_id}")
+    
+    # Check if store has authentication enabled
+    if not store_has_auth(store_id):
+        raise HTTPException(status_code=400, detail=f"Authentication not enabled for store {store_id}")
+    
+    # Verify password
+    if not verify_store_password(store_id, login_data.password):
+        raise HTTPException(status_code=401, detail="Invalid password")
+    
+    # Create session (token)
+    token_duration = 30 * 24 if login_data.remember_me else 24  # 30 days or 24 hours
+    token = create_session(store_id, hours=token_duration)
+    
+    return {"token": token}
+
+@app.get("/api/store/{store_id}/verify")
+async def verify_token(
+    store_id: str = Path(..., regex=r"^\d{1,4}$"),
+    auth_store_id: str = Depends(get_current_store)
+):
+    # get_current_store dependency will raise appropriate exceptions
+    # We only need to check the store_id matches
+    if auth_store_id != store_id:
+        raise HTTPException(status_code=403, detail=f"Token is not valid for store {store_id}")
+    
+    return {"verified": True, "store_id": store_id}
+
+@app.get("/api/store/{store_id}/has-auth")
+async def check_has_auth(store_id: str = Path(..., regex=r"^\d{1,4}$")):
+    # Check if the store's YAML file exists
+    yaml_file = f"stores/store{store_id}.yml"
+    if not os.path.exists(yaml_file):
+        raise HTTPException(status_code=404, detail=f"Store not found: {store_id}")
+    
+    # Check if auth is enabled
+    has_auth = store_has_auth(store_id)
+    
+    return {"hasAuth": has_auth}
+
+@app.post("/api/store/{store_id}/logout")
+async def logout(
+    store_id: str = Path(..., regex=r"^\d{1,4}$"),
+    token: str = Depends(get_current_store)
+):
+    # Delete the session token
+    delete_session(token)
+    
+    return {"message": "Logged out successfully"}
 
 # Floorplan endpoints
 @app.get("/api/store/{store_id}/floorplan", response_class=FileResponse)
@@ -712,7 +766,8 @@ async def get_floorplan(store_id: str = Path(..., regex=r"^\d{1,4}$")):
 @app.post("/api/store/{store_id}/floorplan")
 async def upload_floorplan(
     store_id: str = Path(..., regex=r"^\d{1,4}$"),
-    file: UploadFile = File(...)
+    file: UploadFile = File(...),
+    auth_store_id: str = Depends(get_current_store)
 ):
     # Validate file type
     allowed_types = ["image/png", "image/jpeg", "image/jpg", "image/svg+xml"]
@@ -819,7 +874,8 @@ class LocationUpdateRequest(BaseModel):
 @app.post("/api/store/{store_id}/update-locations", response_class=JSONResponse)
 async def update_locations(
     store_id: str = Path(..., regex=r"^\d{1,4}$"),
-    update_data: LocationUpdateRequest = Body(...)):
+    update_data: LocationUpdateRequest = Body(...),
+    auth_store_id: str = Depends(get_current_store)):
     
     # Validate CSRF token
     if not update_data.csrf_token or len(update_data.csrf_token) < 10:
@@ -827,9 +883,7 @@ async def update_locations(
     
     data = load_store_yaml(store_id)
     
-    # Check if the store is editable
-    if not data.get("editable", False):
-        raise HTTPException(status_code=403, detail="This store is not editable")
+    # Authentication check is handled by the auth_store_id dependency
     
     updated_count = 0
     

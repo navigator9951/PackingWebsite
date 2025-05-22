@@ -48,13 +48,12 @@ Shows some extra things for debugging/settings
 
 ## Customize it
 
-The application supports multiple stores, each with its own box inventory. Box definitions are stored in separate YAML files named `store{id}.yml`, where `{id}` is the store number (e.g., `store1.yml`, `store2.yml`).
+The application supports multiple stores, each with its own box inventory. Box definitions are stored in separate YAML files named `stores/store{id}.yml`, where `{id}` is the store number (e.g., `stores/store1.yml`, `stores/store2.yml`).
 
 Each store file has the following format:
 
 ```yaml
 pricing-mode: standard # Choose between 'standard' or 'itemized' pricing mode
-editable: true # Whether box prices can be edited through the web interface
 
 boxes:
   # For normal boxes (where the third dimension (z) is assumed to be the opening):
@@ -90,7 +89,7 @@ boxes:
     location: "B2"
 ```
 
-To add, remove, or modify boxes, edit the appropriate store YAML file. To add a new store, create a new `store{id}.yml` file following the format above.
+To add, remove, or modify boxes, edit the appropriate store YAML file. To add a new store, create a new `stores/store{id}.yml` file following the format above.
 
 ## Run it
 
@@ -98,7 +97,7 @@ Simply run `docker compose up` in the same directory, and it should start the se
 
 Docker configuration notes:
 
-- The store YAML files (`store*.yml`) are included in the Docker volume mount, so you can edit box configurations without rebuilding
+- The store YAML files (`stores/store*.yml`) are included in the Docker volume mount, so you can edit box configurations without rebuilding
 - Any comments sent to `comments.txt` can be read and deleted from the host system
 
 To disable the comments, remove the `/comments` path from `main.py` and restart the container.

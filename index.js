@@ -445,7 +445,7 @@ async function initialize() {
         errorHelp.innerHTML = `<b>Troubleshooting tips:</b>
         <ul>
             <li>Check that the FastAPI server is running</li>
-            <li>Verify that the store${storeId}.yml file exists and is properly formatted</li>
+            <li>Verify that the stores/store${storeId}.yml file exists and is properly formatted</li>
             <li>Check the server logs for more details</li>
             <li>Make sure you're accessing a valid store ID in the URL path (e.g., /1, /2, etc.)</li>
         </ul>`;

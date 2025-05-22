@@ -4,7 +4,10 @@
 
 @media print {
   /* Hide UI elements */
-  .no-print {
+  .no-print,
+  .admin-nav,
+  .user-info,
+  .mobile-menu-toggle {
     display: none !important;
   }
   

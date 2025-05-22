@@ -8,10 +8,22 @@
     <link rel="stylesheet" href="/assets/css/mobile.css">
     <link rel="stylesheet" href="/assets/css/floorplan-controls.css">
     <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+        
+        #app-container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+        
         .container {
             max-width: 1200px;
             margin: 0 auto;
             padding: 20px;
+            flex: 1;
         }
         
         /* Mode controls */
@@ -452,22 +464,25 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1 id="page-title">Floorplan Editor</h1>
+    <div id="app-container">
+        <!-- The navigation bar will be inserted here by initAdminNav -->
         
-        <!-- Mode controls -->
-        <div class="mode-controls" id="mode-controls">
-            <div class="mode-toggle">
-                <span class="toggle-label active" id="view-label">View</span>
-                <div class="toggle-switch" id="mode-toggle-switch">
-                    <div class="toggle-slider"></div>
+        <div class="container">
+            <h1 id="page-title">Floorplan Editor</h1>
+            
+            <!-- Mode controls -->
+            <div class="mode-controls" id="mode-controls">
+                <div class="mode-toggle">
+                    <span class="toggle-label active" id="view-label">View</span>
+                    <div class="toggle-switch" id="mode-toggle-switch">
+                        <div class="toggle-slider"></div>
+                    </div>
+                    <span class="toggle-label" id="edit-label">Edit</span>
                 </div>
-                <span class="toggle-label" id="edit-label">Edit</span>
+                <div class="filter-controls">
+                    <!-- Removed show unassigned button -->
+                </div>
             </div>
-            <div class="filter-controls">
-                <!-- Removed show unassigned button -->
-            </div>
-        </div>
         
         <!-- Floorplan viewer -->
         <div id="floorplan-viewer" class="floorplan-viewer">
@@ -513,6 +528,9 @@
         </div>
     </div>
     
+    <script src="/lib/auth.js"></script>
+    <script src="/components/navigation.js"></script>
+    
     <script type="module">
         import { FloorplanUpload } from '/components/floorplan-upload.js';
         import { FloorplanViewer } from '/components/floorplan-viewer.js';
@@ -525,6 +543,23 @@
         document.getElementById('page-title').textContent = `Floorplan Editor - Store ${storeId}`;
         document.getElementById('back-link').href = `/${storeId}`;
         document.getElementById('back-link').textContent = `Back to Store ${storeId} Main Page`;
+        
+        // Initialize the navigation bar
+        await window.initAdminNav('app-container', storeId, 'floorplan');
+        
+        // Check if authentication is required
+        if (typeof AuthManager !== 'undefined') {
+            AuthManager.requireAuth(storeId).then(isAuthenticated => {
+                if (!isAuthenticated) {
+                    // If authentication fails, AuthManager will handle the redirect
+                    return;
+                }
+                // If authenticated or no auth required, continue with app initialization
+                console.log('Authentication check passed, continuing with app initialization');
+            }).catch(error => {
+                console.error('Authentication error:', error);
+            });
+        }
         
         // Initialize location editor (which manages viewer, upload, and modes)
         const locationEditor = new FloorplanLocationEditor(storeId);

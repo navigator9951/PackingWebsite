@@ -14,31 +14,28 @@
         </style>
     </head>
     <body>
-        <div id="header">
-            <script>
-                // Extract store number from URL and show price editor link only if store is editable
-                const pathParts = window.location.pathname.split('/');
-                const storeId = pathParts[1];
-
-                if (storeId && /^\d+$/.test(storeId)) {
-                    // Check if the store is editable before showing the price editor link
-                    fetch(`/api/store/${storeId}/is_editable`)
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.editable) {
-                                document.getElementById('header').innerHTML += 
-                                    `<a href="/${storeId}/price_editor" style="display: block; margin: 10px 0; padding: 5px; background-color: #f0f0f0; width: fit-content; text-decoration: none; color: #333; border: 1px solid #ccc; border-radius: 4px;">Open Price Editor for Store ${storeId}</a>`;
-                            }
-                        })
-                        .catch(error => console.error('Error checking if store is editable:', error));
-                }
-            </script>
+        <div id="app-container">
+            <!-- The navigation bar will be inserted here by initAdminNav -->
         </div>
         <div id="container"></div>
+        <script src="/lib/auth.js"></script>
+        <script src="/components/navigation.js"></script>
         <script src="/pricing.js"></script>
         <script src="/packing.js"></script>
         <script src="/api.js"></script>
         <script src="/location.js"></script>
+        <script>
+            // Initialize navigation for the main packing page
+            document.addEventListener('DOMContentLoaded', async function() {
+                const pathParts = window.location.pathname.split('/');
+                const storeId = pathParts[1];
+                
+                if (storeId && /^\d+$/.test(storeId)) {
+                    // Initialize the navigation bar
+                    await initAdminNav('app-container', storeId, 'packing');
+                }
+            });
+        </script>
         <script src="/index.js" defer></script>
     </body>
 </html>
