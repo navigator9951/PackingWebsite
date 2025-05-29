@@ -1,5 +1,4 @@
 pricing-mode: standard
-editable: true
 boxes:
   - type: NormalBox
     supplier: ABC
