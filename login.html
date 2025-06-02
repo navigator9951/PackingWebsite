@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Store Login</title>
+  <link rel="stylesheet" href="/assets/css/common.css">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #f8f9fa;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+    
+    .login-page {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+    
+    .store-header {
+      background-color: #343a40;
+      color: white;
+      padding: 15px 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    
+    .store-logo-title {
+      display: flex;
+      align-items: center;
+    }
+    
+    .store-logo {
+      height: 40px;
+      margin-right: 15px;
+    }
+    
+    .back-link {
+      color: white;
+      text-decoration: none;
+      padding: 5px 10px;
+      border-radius: 4px;
+      border: 1px solid rgba(255,255,255,0.3);
+      transition: all 0.2s;
+    }
+    
+    .back-link:hover {
+      background-color: rgba(255,255,255,0.1);
+    }
+    
+    .login-content {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .login-card {
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 400px;
+      padding: 30px;
+    }
+    
+    .login-title {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #333;
+    }
+    
+    #login-container {
+      width: 100%;
+    }
+    
+    .login-footer {
+      text-align: center;
+      padding: 15px;
+      font-size: 0.9em;
+      color: #6c757d;
+      border-top: 1px solid #dee2e6;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-page">
+    <div class="store-header">
+      <div class="store-logo-title">
+        <img src="/assets/icons/logo.png" alt="Store Logo" class="store-logo" onerror="this.style.display='none'">
+        <h2 id="store-title">Store Login</h2>
+      </div>
+      <a href="/" class="back-link" id="back-link">Back to Main</a>
+    </div>
+    
+    <div class="login-content">
+      <div class="login-card">
+        <h3 class="login-title">Admin Authentication</h3>
+        <div id="login-container"></div>
+      </div>
+    </div>
+    
+    <div class="login-footer">
+      <p>Packing Website &copy; 2025</p>
+    </div>
+  </div>
+  
+  <!-- Include auth library first -->
+  <script src="/lib/auth.js"></script>
+  <script src="/components/login.js"></script>
+  <script>
+    // Get store ID from URL
+    const pathParts = window.location.pathname.split('/');
+    const storeId = pathParts[1];
+    
+    if (storeId) {
+      // Update store title and back link
+      document.getElementById('store-title').textContent = `Store ${storeId} Login`;
+      document.getElementById('back-link').href = `/${storeId}`;
+      document.getElementById('back-link').textContent = `Back to Store ${storeId}`;
+      
+      // Check if already authenticated
+      (async function() {
+        try {
+          const status = await AuthManager.getAuthStatus(storeId);
+          if (status.isAuthenticated) {
+            // Already logged in, redirect to admin
+            window.location.href = `/${storeId}/prices`;
+          } else if (!status.hasAuth) {
+            // Store doesn't have auth configured
+            document.getElementById('login-container').innerHTML = 
+              '<div class="card p-3 bg-light"><p>Authentication is not configured for this store.</p>' +
+              `<a href="/${storeId}" class="btn btn-primary">Return to Store</a></div>`;
+          } else {
+            // Show login form
+            initLoginForm('login-container', storeId);
+          }
+        } catch (error) {
+          console.error('Error checking auth status:', error);
+          document.getElementById('login-container').innerHTML = 
+            '<div class="card p-3 bg-danger text-white"><p>Error checking authentication status.</p>' +
+            `<a href="/${storeId}" class="btn btn-light">Return to Store</a></div>`;
+        }
+      })();
+    } else {
+      document.getElementById('login-container').innerHTML = 
+        '<div class="card p-3 bg-warning"><p>Invalid store ID. Please access this page through a valid store URL.</p>' +
+        '<a href="/" class="btn btn-primary">Go to Homepage</a></div>';
+    }
+  </script>
+</body>
+</html>

@@ -7,14 +7,25 @@
     <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/buttons/2.2.2/css/buttons.dataTables.min.css">
     <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/select/1.3.4/css/select.dataTables.min.css">
     <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/responsive/2.2.9/css/responsive.dataTables.min.css">
+    <link rel="stylesheet" type="text/css" href="/assets/css/print.css">
+    <link rel="stylesheet" type="text/css" href="/assets/css/common.css">
     <style>
         body {
             font-family: Arial, sans-serif;
-            margin: 20px;
+            margin: 0;
+            padding: 0;
+        }
+        #app-container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
         }
         .container {
-            width: 95%;
+            width: 90%;
+            max-width: none !important; /* Override Bootstrap max-width constraint */
             margin: 0 auto;
+            padding: 15px;
+            flex: 1;
         }
         .header {
             margin-bottom: 20px;
@@ -57,6 +68,22 @@
             background-color: rgba(221, 160, 221, 0.3) !important; /* Plum */
         }
         
+        /* Print button styles */
+        .print-button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-left: 10px;
+        }
+        
+        .print-button:hover {
+            background-color: #45a049;
+        }
+        
         /* Column-based color scheme */
         
         /* Box price column - Light blue */
@@ -80,14 +107,11 @@
         }
         
         /* Location column - Light gray */
-        td:nth-last-child(2) {
+        td:last-child {
             background-color: rgba(211, 211, 211, 0.3) !important; /* Light Gray */
         }
         
-        /* Actions column - Very light gray */
-        td:last-child {
-            background-color: rgba(245, 245, 245, 0.3) !important; /* White Smoke */
-        }
+        /* Location column now includes undo button */
         
         /* Row specific colors - add a slight tint to show row grouping */
         .blue-row td {
@@ -116,6 +140,239 @@
         
         .custom-row td {
             box-shadow: inset 0 0 0 1000px rgba(221, 160, 221, 0.1) !important; /* Plum tint */
+        }
+        
+        /* Location cell styles */
+        .location-cell {
+            text-align: left;
+            padding-left: 6px !important;
+            padding-right: 4px !important;
+            width: 110px !important; /* Compact but fits 4 icons */
+            min-width: 110px !important;
+            max-width: 110px !important;
+        }
+        
+        .location-buttons {
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 2px; /* Very tight spacing */
+            width: 100%;
+        }
+        
+        .location-btn {
+            background: none;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            padding: 3px;
+            cursor: pointer;
+            color: #666;
+            transition: all 0.2s;
+            width: 26px; /* Fixed width for consistent layout */
+            height: 26px; /* Fixed height for consistent layout */
+            flex: 0 0 26px; /* Prevent flex growth/shrink */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .location-btn:hover:not(:disabled):not([data-no-floorplan="true"]) {
+            background: #f5f5f5;
+            border-color: #999;
+            color: #333;
+        }
+        
+        .location-btn:disabled {
+            cursor: not-allowed;
+        }
+        
+        .location-btn svg {
+            display: block;
+        }
+        
+        .view-location {
+            color: #2196F3; /* Blue for view */
+        }
+        
+        .edit-location {
+            color: #4CAF50; /* Green for edit */
+        }
+        
+        .notes-location {
+            color: #FF9800; /* Orange for notes */
+        }
+        
+        /* We're not using the location-label in the compact layout */
+        .location-label {
+            display: none;
+        }
+        
+        /* Tooltip for notes */
+        .location-note-tooltip {
+            font-size: 12px;
+            max-width: 200px;
+            word-break: break-word;
+        }
+        
+        /* Location modal styles */
+        .location-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        
+        .location-modal {
+            background: white;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .modal-header h3 {
+            margin: 0;
+            font-size: 18px;
+            color: #333;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+        }
+        
+        .modal-close:hover {
+            background: #f5f5f5;
+            color: #333;
+        }
+        
+        .modal-body {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        
+        .modal-footer {
+            display: flex;
+            justify-content: space-between;
+            padding: 15px 20px;
+            border-top: 1px solid #eee;
+        }
+        
+        /* Floorplan viewer styles */
+        .floorplan-viewer {
+            position: relative;
+            width: 100%;
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        .floorplan-container {
+            position: relative;
+            width: 100%;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .floorplan-image {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        
+        .marker-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        
+        .edit-mode .marker-layer {
+            pointer-events: auto;
+            cursor: crosshair;
+        }
+        
+        .location-marker {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            margin-left: -15px;
+            margin-top: -15px;
+            color: red;
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            line-height: 30px;
+            pointer-events: auto;
+            cursor: pointer;
+            text-shadow: 2px 2px 2px rgba(255,255,255,0.8);
+        }
+        
+        .marker-current {
+            color: red;
+            font-size: 28px;
+        }
+        
+        .location-label-input {
+            margin-top: 15px;
+        }
+        
+        .location-label-input label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .location-label-input input {
+            width: 100%;
+            max-width: 300px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .location-label-display {
+            margin-top: 15px;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 4px;
+        }
+        
+        .no-floorplan {
+            padding: 40px;
+            text-align: center;
+            background: #f5f5f5;
+            border-radius: 4px;
         }
         .changes-pending {
             background-color: #ffe0e0;
@@ -197,6 +454,27 @@
             background-color: rgba(255, 182, 193, 0.6) !important; /* Light Pink */
             font-weight: bold;
         }
+        
+        /* Fix table header padding for icons */
+        th {
+            padding: 5px 3px !important;
+            text-align: center !important;
+            vertical-align: middle !important;
+        }
+        
+        /* Center images in headers and add pointer cursor for tooltips */
+        th img {
+            display: block;
+            margin: 0 auto;
+            max-width: 100%;
+            height: auto;
+            cursor: help;
+        }
+        
+        /* Group header styles need to ensure icons display correctly */
+        .group-header {
+            padding-bottom: 0 !important;
+        }
         .group-header {
             background-color: #e9ecef;
             text-align: center;
@@ -219,47 +497,248 @@
             color: white;
         }
         .undo-btn {
-            visibility: hidden;
+            opacity: 0;
             cursor: pointer;
-            color: #6c757d;
-            font-size: 16px;
-            transition: color 0.2s;
-            text-align: center;
+            color: #dc3545; /* Always red for visibility */
+            font-size: 20px; /* Bigger */
+            font-weight: 900; /* Extra bold */
+            transition: opacity 0.2s;
+            background: rgba(220, 53, 69, 0.1); /* Light red background */
+            border: 1px solid #dc3545;
+            padding: 1px 3px;
+            border-radius: 3px;
+            width: 26px;
+            height: 26px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-shadow: 1px 1px 1px rgba(0,0,0,0.3);
         }
         .undo-btn:hover {
-            color: #dc3545;
+            background: rgba(220, 53, 69, 0.2);
+            transform: scale(1.1);
         }
-        .show-undo {
-            visibility: visible;
+        .undo-btn.show-undo {
+            opacity: 1 !important;
+        }
+        /* Remove all icon styles from here - now in icons.css */
+        
+        /* Ensure tooltips work on header images */
+        th img {
+            cursor: help;
+        }
+        
+        /* Print-specific styles */
+        @media print {
+            /* Remove all potential hiding */
+            table.dataTable thead th {
+                display: table-cell !important;
+                visibility: visible !important;
+            }
+            
+            /* Force ALL icons to be visible */
+            table.dataTable thead th img {
+                display: inline-block !important;
+                visibility: visible !important;
+                width: 14px !important;
+                height: 14px !important;
+            }
+            
+            /* Override any inherited hiding */
+            .custom-group {
+                display: table-cell !important;
+                visibility: visible !important;
+            }
+            
+            .custom-group img {
+                display: inline-block !important;
+                visibility: visible !important;
+            }
+            /* Hide interactive UI elements */
+            .buttons-container,
+            .status-message,
+            #backLink,
+            #editInstructions,
+            #readOnlyMessage,
+            .undo-btn,
+            .dataTables_length,
+            .dataTables_filter,
+            .dataTables_info,
+            .dataTables_paginate,
+            .admin-nav {
+                display: none !important;
+            }
+            
+            /* Hide the entire header section */
+            .header {
+                display: none !important;
+            }
+            
+            /* Make table full width */
+            table.dataTable {
+                width: 100% !important;
+                page-break-inside: auto;
+                font-size: 10pt;
+            }
+            
+            /* Compact table spacing for portrait mode */
+            table.dataTable th,
+            table.dataTable td {
+                padding: 3px 5px !important;
+                font-size: 9pt;
+            }
+            
+            /* Make headers smaller */
+            table.dataTable th {
+                font-size: 8pt;
+                font-weight: bold;
+            }
+            
+            /* Section headers smaller */
+            .section-header {
+                font-size: 11pt !important;
+                padding: 4px 8px !important;
+            }
+            
+            /* Keep table rows together */
+            table.dataTable tr {
+                page-break-inside: avoid;
+                page-break-after: auto;
+            }
+            
+            /* Hide Location column in print */
+            /* First row: only headers that have rowspan="2" AND are last */
+            table.dataTable thead tr:first-child th[rowspan="2"]:nth-last-child(1) {
+                display: none !important;
+            }
+            
+            /* Data cells - hide location column */
+            table.dataTable tbody tr td:last-child {
+                display: none !important;
+            }
+            
+            /* Hide DataTables sorting arrows and indicators */
+            table.dataTable thead .sorting::before,
+            table.dataTable thead .sorting::after,
+            table.dataTable thead .sorting_asc::before,
+            table.dataTable thead .sorting_asc::after,
+            table.dataTable thead .sorting_desc::before,
+            table.dataTable thead .sorting_desc::after,
+            table.dataTable thead .sorting_asc_disabled::before,
+            table.dataTable thead .sorting_asc_disabled::after,
+            table.dataTable thead .sorting_desc_disabled::before,
+            table.dataTable thead .sorting_desc_disabled::after {
+                display: none !important;
+                content: none !important;
+            }
+            
+            /* Remove sorting classes entirely to prevent any styling */
+            table.dataTable thead th.sorting,
+            table.dataTable thead th.sorting_asc,
+            table.dataTable thead th.sorting_desc {
+                background-image: none !important;
+                cursor: default !important;
+                position: relative !important;
+            }
+            
+            /* DataTables 1.11 specific */
+            table.dataTable thead th.sorting:before,
+            table.dataTable thead th.sorting:after,
+            table.dataTable thead th.sorting_asc:before,
+            table.dataTable thead th.sorting_asc:after,
+            table.dataTable thead th.sorting_desc:before,
+            table.dataTable thead th.sorting_desc:after {
+                display: none !important;
+                content: "" !important;
+            }
+            
+            /* Ensure colors are preserved */
+            * {
+                color-adjust: exact !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            
+            /* Adjust body margins for print */
+            body {
+                margin: 0.4in;
+                font-size: 11pt;
+            }
+            
+            /* Ensure section headers stay with their tables */
+            .section-header {
+                page-break-after: avoid;
+            }
+            
+            /* Keep icons visible in print */
+            th img {
+                width: 14px !important;
+                height: 14px !important;
+                display: inline-block !important;
+                visibility: visible !important;
+            }
+            
+            /* Ensure all header images and cells are visible by default */
+            table.dataTable thead tr th {
+                display: table-cell !important;
+            }
+            
+            table.dataTable thead tr th img {
+                display: inline-block !important;
+                visibility: visible !important;
+            }
+            
+            /* For the second row specifically, ensure all icons are visible */
+            table.dataTable thead tr:nth-child(2) th {
+                display: table-cell !important;
+            }
+            
+            table.dataTable thead tr:nth-child(2) th img {
+                display: inline-block !important;
+                visibility: visible !important;
+                width: 14px !important;
+                height: 14px !important;
+            }
+            
+            /* Adjust group headers for better spacing */
+            .group-header {
+                font-size: 9pt !important;
+                padding: 3px !important;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1 id="storeHeader">Box Price Editor</h1>
-            <p id="editInstructions">Click on any price cell to edit. Your changes will be tracked and can be saved to the YAML file.</p>
-            <div id="readOnlyMessage" style="display: none; padding: 10px; background-color: #ffe0e0; margin-bottom: 15px; border-radius: 4px;">
-                <strong>Read-only Mode:</strong> This store is not editable. To enable editing, set 'editable: true' in the store's YAML file.
+    <div id="app-container">
+        <!-- The navigation bar will be inserted here by initAdminNav -->
+        
+        <div class="container">
+            <div class="header">
+                <h1 id="storeHeader">Box Price Editor</h1>
+                <p id="editInstructions">Click on any price cell to edit. Your changes will be tracked and can be saved to the YAML file.</p>
+                <div id="readOnlyMessage" style="display: none; padding: 10px; background-color: #ffe0e0; margin-bottom: 15px; border-radius: 4px;">
+                    <strong>Read-only Mode:</strong> You must be logged in to edit prices.
+                </div>
+                <div id="backLink"></div>
             </div>
-            <div id="backLink"></div>
+            
+            <div class="buttons-container">
+                <button id="saveChanges" class="save-button" disabled>Save Changes</button>
+                <span id="changeCount">No changes pending</span>
+                <button id="printView" class="print-button">Print View</button>
+            </div>
+            
+            <div id="statusMessage" class="status-message" style="display: none;"></div>
+            
+            <table id="priceTable" class="display responsive nowrap" style="width:100%">
+                <thead id="priceTableHeader">
+                    <!-- Header will be built dynamically based on pricing mode -->
+                </thead>
+                <tbody>
+                    <!-- Data will be loaded dynamically -->
+                </tbody>
+            </table>
         </div>
-        
-        <div class="buttons-container">
-            <button id="saveChanges" class="save-button" disabled>Save Changes</button>
-            <span id="changeCount">No changes pending</span>
-        </div>
-        
-        <div id="statusMessage" class="status-message" style="display: none;"></div>
-        
-        <table id="priceTable" class="display responsive nowrap" style="width:100%">
-            <thead id="priceTableHeader">
-                <!-- Header will be built dynamically based on pricing mode -->
-            </thead>
-            <tbody>
-                <!-- Data will be loaded dynamically -->
-            </tbody>
-        </table>
     </div>
     
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
@@ -267,14 +746,34 @@
     <script src="https://cdn.datatables.net/buttons/2.2.2/js/dataTables.buttons.min.js"></script>
     <script src="https://cdn.datatables.net/select/1.3.4/js/dataTables.select.min.js"></script>
     <script src="https://cdn.datatables.net/responsive/2.2.9/js/dataTables.responsive.min.js"></script>
+    <script src="/lib/auth.js"></script>
+    <script src="/components/navigation.js"></script>
     <script src="/pricing.js"></script>
+    <script src="/lib/api.js"></script>
     <script>
-    $(document).ready(function() {
+    $(document).ready(async function() {
         // Extract store number from URL and create the back link
         const pathParts = window.location.pathname.split('/');
         const storeId = pathParts[1] || '1';
         $('#backLink').html(`<a href="/${storeId}">Back to Store ${storeId} Main Page</a>`);
         $('#storeHeader').text(`Box Price Editor - Store ${storeId}`);
+        
+        // Initialize the navigation bar
+        await initAdminNav('app-container', storeId, 'prices');
+        
+        // Check if authentication is required
+        if (typeof AuthManager !== 'undefined') {
+            AuthManager.requireAuth(storeId).then(isAuthenticated => {
+                if (!isAuthenticated) {
+                    // If authentication fails, AuthManager will handle the redirect
+                    return;
+                }
+                // If authenticated or no auth required, continue with app initialization
+                console.log('Authentication check passed, continuing with app initialization');
+            }).catch(error => {
+                console.error('Authentication error:', error);
+            });
+        }
         
         // Store all changes to be saved
         let changedData = {};
@@ -282,6 +781,8 @@
         let isEditable = false; // Default to read-only
         let pricingMode = 'standard'; // Default pricing mode
         let priceTable;
+        let originalData = []; // Store original data for undo functionality
+        let changedLocations = {}; // Store location changes separately
 
         // Generate a simple CSRF token for this session
         const csrfToken = Math.random().toString(36).substring(2, 15) +
@@ -293,15 +794,23 @@
             const $saveButton = $('#saveChanges');
             const $changeCount = $('#changeCount');
             
-            if (changeCount > 0) {
+            const locationChangeCount = Object.keys(changedLocations).length;
+            const totalChangeCount = changeCount + locationChangeCount;
+            
+            if (totalChangeCount > 0) {
                 $saveButton.prop('disabled', !isEditable);
-                $changeCount.text(changeCount + ' change' + (changeCount > 1 ? 's' : '') + ' pending');
+                $changeCount.text(totalChangeCount + ' change' + (totalChangeCount > 1 ? 's' : '') + ' pending');
                 $changeCount.addClass('changes-pending');
             } else {
                 $saveButton.prop('disabled', true);
                 $changeCount.text('No changes pending');
                 $changeCount.removeClass('changes-pending');
             }
+        }
+        
+        // Function to update location change counter
+        function updateLocationChangeCounter() {
+            updateChangeCounter();
         }
         
         // Function to show status message
@@ -320,21 +829,22 @@
         
         // We've moved this check to be combined with pricing mode check
         
-        // First check pricing mode and editability
-        $.ajax({
-            url: '/api/store/' + storeId + '/pricing_mode',
-            method: 'GET',
-            success: function(response) {
-                pricingMode = response.mode;
+        // First check pricing mode and editability using api.js functions
+        window.api.fetchPricingMode(storeId)
+            .then(mode => {
+                pricingMode = mode;
                 
-                // Next check if store is editable
-                $.ajax({
-                    url: '/api/store/' + storeId + '/is_editable',
-                    method: 'GET',
-                    success: function(response) {
-                        isEditable = response.editable;
+                // Check authentication status for editing capabilities
+                if (typeof AuthManager !== 'undefined') {
+                    return AuthManager.getAuthStatus(storeId);
+                } else {
+                    return { hasAuth: false, isAuthenticated: false };
+                }
+            })
+            .then(authStatus => {
+                isEditable = authStatus.isAuthenticated;
                         
-                        // Update UI based on editability
+                        // Update UI based on authentication status
                         if (!isEditable) {
                             $('#readOnlyMessage').show();
                             $('#editInstructions').hide();
@@ -342,57 +852,27 @@
                         }
                         
                         // Load box data next
-                        loadBoxData();
-                    },
-                    error: function() {
-                        showStatus('Failed to check if store is editable', 'error');
-                        // Still load the data even if check fails
-                        loadBoxData();
-                    }
-                });
-            },
-            error: function() {
-                showStatus('Failed to check pricing mode, defaulting to standard', 'error');
-                // Continue with the editability check even if pricing mode check fails
-                $.ajax({
-                    url: '/api/store/' + storeId + '/is_editable',
-                    method: 'GET',
-                    success: function(response) {
-                        isEditable = response.editable;
-                        
-                        // Update UI based on editability
-                        if (!isEditable) {
-                            $('#readOnlyMessage').show();
-                            $('#editInstructions').hide();
-                            $('#saveChanges').prop('disabled', true);
-                        }
-                        
-                        // Load box data next
-                        loadBoxData();
-                    },
-                    error: function() {
-                        showStatus('Failed to check if store is editable', 'error');
-                        // Still load the data even if check fails
-                        loadBoxData();
-                    }
-                });
-            }
-        });
+                loadBoxData();
+            })
+            .catch(error => {
+                console.error('Error checking pricing mode or editability:', error);
+                showStatus('Failed to check store settings', 'error');
+                // Still load the data even if checks fail
+                loadBoxData();
+            });
         
         // Function to load box data
         function loadBoxData() {
-            $.ajax({
-                url: '/api/store/' + storeId + '/all_boxes',
-                method: 'GET',
-                success: function(response) {
+            window.api.fetchAllBoxes(storeId)
+                .then(response => {
                     // Process the boxes into the format needed for the table
                     const processedData = processBoxesData(response.boxes, response.pricing_mode);
                     initializeDataTable(processedData);
-                },
-                error: function() {
+                })
+                .catch(error => {
+                    console.error('Error loading box data:', error);
                     showStatus('Failed to load box data', 'error');
-                }
-            });
+                });
         }
         
         // Function to process boxes data into table format
@@ -546,13 +1026,13 @@
                 }
                 headerRow.append('<th>Dimensions</th>');
                 headerRow.append('<th>Box Price</th>');
-                headerRow.append('<th>Standard</th>');
-                headerRow.append('<th>Fragile</th>');
-                headerRow.append('<th>Custom</th>');
+                headerRow.append('<th><img src="/assets/icons/total.png" width="24" height="24" alt="Standard Total" title="Standard Total"></th>');
+                headerRow.append('<th><img src="/assets/icons/total.png" width="24" height="24" alt="Fragile Total" title="Fragile Total"></th>');
+                headerRow.append('<th><img src="/assets/icons/total.png" width="24" height="24" alt="Custom Total" title="Custom Total"></th>');
                 if (hasLocations) {
                     headerRow.append('<th>Location</th>');
                 }
-                headerRow.append('<th>Actions</th>');
+                // Actions column removed - undo button now in location column
                 
                 $tableHeader.append(headerRow);
                 
@@ -609,25 +1089,25 @@
                 if (hasLocations) {
                     groupHeaderRow.append('<th rowspan="2">Location</th>');
                 }
-                groupHeaderRow.append('<th rowspan="2">Actions</th>');
+                // Actions column removed - undo button now in location column
                 
                 // Second row with individual column headers
                 const detailHeaderRow = $('<tr></tr>');
                 
-                // Standard group columns
-                detailHeaderRow.append('<th class="standard-group">Materials</th>');
-                detailHeaderRow.append('<th class="standard-group">Services</th>');
-                detailHeaderRow.append('<th class="standard-group">Total</th>');
+                // Standard group columns  
+                detailHeaderRow.append('<th class="standard-group"><img src="/assets/icons/materials.png" width="24" height="24" alt="Materials" title="Standard Materials"></th>');
+                detailHeaderRow.append('<th class="standard-group"><img src="/assets/icons/services.png" width="24" height="24" alt="Services" title="Standard Services"></th>');
+                detailHeaderRow.append('<th class="standard-group"><img src="/assets/icons/total.png" width="24" height="24" alt="Total" title="Standard Total"></th>');
                 
                 // Fragile group columns
-                detailHeaderRow.append('<th class="fragile-group">Materials</th>');
-                detailHeaderRow.append('<th class="fragile-group">Services</th>');
-                detailHeaderRow.append('<th class="fragile-group">Total</th>');
+                detailHeaderRow.append('<th class="fragile-group"><img src="/assets/icons/materials.png" width="24" height="24" alt="Materials" title="Fragile Materials"></th>');
+                detailHeaderRow.append('<th class="fragile-group"><img src="/assets/icons/services.png" width="24" height="24" alt="Services" title="Fragile Services"></th>');
+                detailHeaderRow.append('<th class="fragile-group"><img src="/assets/icons/total.png" width="24" height="24" alt="Total" title="Fragile Total"></th>');
                 
                 // Custom group columns
-                detailHeaderRow.append('<th class="custom-group">Materials</th>');
-                detailHeaderRow.append('<th class="custom-group">Services</th>');
-                detailHeaderRow.append('<th class="custom-group">Total</th>');
+                detailHeaderRow.append('<th class="custom-group"><img src="/assets/icons/materials.png" width="24" height="24" alt="Materials" title="Custom Materials"></th>');
+                detailHeaderRow.append('<th class="custom-group"><img src="/assets/icons/services.png" width="24" height="24" alt="Services" title="Custom Services"></th>');
+                detailHeaderRow.append('<th class="custom-group"><img src="/assets/icons/total.png" width="24" height="24" alt="Total" title="Custom Total"></th>');
                 
                 // Add both rows to the header
                 $tableHeader.append(groupHeaderRow);
@@ -712,18 +1192,79 @@
             
             // Add location column conditionally
             if (hasLocations) {
-                columns.push({ data: 'location' });
+                columns.push({
+                    data: 'location',
+                    render: function(data, type, row) {
+                        // Determine location status
+                        const hasCoords = data && typeof data === 'object' && data.coords && data.coords.length > 0;
+                        
+                        // Get label based on location type
+                        let label = '';
+                        let isTextBasedLocation = false;
+                        
+                        if (typeof data === 'string') {
+                            // Old-style string location
+                            label = data !== '???' ? data : '';
+                            isTextBasedLocation = data !== '???';
+                        } else if (data && typeof data === 'object') {
+                            // New dictionary format
+                            label = data.label || '';
+                            isTextBasedLocation = !hasCoords && label !== '';
+                        }
+                        
+                        const hasChanges = changedData[row.model] !== undefined;
+                        const undoClasses = hasChanges ? 'undo-btn show-undo' : 'undo-btn';
+                        
+                        return `
+                            <div class="location-buttons">
+                                <!-- Eye icon - only active if box has coordinates -->
+                                <button class="location-btn view-location" 
+                                        data-model="${row.model}" 
+                                        ${!hasCoords ? 'disabled' : ''} 
+                                        title="${hasCoords ? 'View location on floorplan' : 'No coordinates set'}"
+                                        style="opacity: ${hasCoords ? '1' : '0.4'}">
+                                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                        <path d="M16 8s-3-5.5-8-5.5S0 8 0 8s3 5.5 8 5.5S16 8 16 8zM1.173 8a13.133 13.133 0 0 1 1.66-2.043C4.12 4.668 5.88 3.5 8 3.5c2.12 0 3.879 1.168 5.168 2.457A13.133 13.133 0 0 1 14.828 8c-.058.087-.122.183-.195.288-.335.48-.83 1.12-1.465 1.755C11.879 11.332 10.119 12.5 8 12.5c-2.12 0-3.879-1.168-5.168-2.457A13.134 13.134 0 0 1 1.172 8z"/>
+                                        <path d="M8 5.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5zM4.5 8a3.5 3.5 0 1 1 7 0 3.5 3.5 0 0 1-7 0z"/>
+                                    </svg>
+                                </button>
+                                
+                                <!-- Pencil icon - always available if store has a floorplan -->
+                                <button class="location-btn edit-location" 
+                                        data-model="${row.model}" 
+                                        title="Edit location"
+                                        ${!window.hasFloorplan ? 'data-no-floorplan="true"' : ''}
+                                        style="opacity: ${window.hasFloorplan ? '1' : '0.4'}">
+                                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                        <path d="M12.146.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1 0 .708l-10 10a.5.5 0 0 1-.168.11l-5 2a.5.5 0 0 1-.65-.65l2-5a.5.5 0 0 1 .11-.168l10-10zM11.207 2.5 13.5 4.793 14.793 3.5 12.5 1.207 11.207 2.5zm1.586 3L10.5 3.207 4 9.707V10h.5a.5.5 0 0 1 .5.5v.5h.5a.5.5 0 0 1 .5.5v.5h.293l6.5-6.5zm-9.761 5.175-.106.106-1.528 3.821 3.821-1.528.106-.106A.5.5 0 0 1 5 12.5V12h-.5a.5.5 0 0 1-.5-.5V11h-.5a.5.5 0 0 1-.468-.325z"/>
+                                    </svg>
+                                </button>
+                                
+                                <!-- Undo button - right next to pencil, SUPER visible when changes exist -->
+                                <button class="${undoClasses}" data-model="${row.model}" title="Undo changes for this row">↺</button>
+                                
+                                <!-- Notes icon - only for text-based locations with hover tooltip -->
+                                ${isTextBasedLocation ? `
+                                <button class="location-btn notes-location" 
+                                        data-content="${label}" 
+                                        title="Location notes: ${label}">
+                                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                        <path d="M5 10.5a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5zm0-2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm0-2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm0-2a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5z"/>
+                                        <path d="M3 0h10a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2v-1h1v1a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H3a1 1 0 0 0-1 1v1H1V2a2 2 0 0 1 2-2z"/>
+                                        <path d="M1 5v-.5a.5.5 0 0 1 1 0V5h.5a.5.5 0 0 1 0 1h-2a.5.5 0 0 1 0-1H1zm0 3v-.5a.5.5 0 0 1 1 0V8h.5a.5.5 0 0 1 0 1h-2a.5.5 0 0 1 0-1H1zm0 3v-.5a.5.5 0 0 1 1 0v.5h.5a.5.5 0 0 1 0 1h-2a.5.5 0 0 1 0-1H1z"/>
+                                    </svg>
+                                </button>` : ''}
+                            </div>
+                        `;
+                    },
+                    className: 'location-cell'
+                });
             }
             
-            // Always add actions column
-            columns.push({
-                data: null,
-                render: function(data, type, row) {
-                    return '<span class="undo-btn">↺</span>';
-                },
-                className: 'text-center',
-                orderable: false
-            });
+            // Actions column removed - undo button now in location column
+            
+            // Store a deep copy of the original data for undo functionality
+            originalData = JSON.parse(JSON.stringify(data));
             
             // Initialize the DataTable with the appropriate columns
             priceTable = $('#priceTable').DataTable({
@@ -756,11 +1297,81 @@
         
         // Set up all event handlers
         function setupEventHandlers() {
-            // Make price cells editable only if the store is editable
+            // Make price cells editable only if authenticated
+            // Handle undo button click
+            $('#priceTable').on('click', '.undo-btn.show-undo', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                const $button = $(this);
+                const $tr = $button.closest('tr');
+                
+                
+                if (!$tr.length) {
+                    console.error('Could not find parent tr');
+                    return;
+                }
+                
+                try {
+                    const row = priceTable.row($tr);
+                    
+                    if (!row || typeof row.data !== 'function') {
+                        console.error('Could not get valid DataTable row');
+                        return;
+                    }
+                    
+                    const rowData = row.data();
+                
+                if (!rowData) {
+                    console.error('Row data is undefined');
+                    return;
+                }
+                
+                
+                // Remove changes for this row
+                if (changedData[rowData.model]) {
+                    delete changedData[rowData.model];
+                    changeCount--;
+                    
+                    
+                    // Reload original data for this row
+                    const originalRow = originalData.find(r => r.model === rowData.model);
+                    if (originalRow) {
+                        // Restore all original values based on pricing mode
+                        if (pricingMode === 'standard') {
+                            rowData.box_price = originalRow.box_price;
+                            rowData.standard = originalRow.standard;
+                            rowData.fragile = originalRow.fragile;
+                            rowData.custom = originalRow.custom;
+                        } else {
+                            // For itemized pricing, restore all fields
+                            rowData.box_price = originalRow.box_price;
+                            rowData.standard_materials = originalRow.standard_materials;
+                            rowData.standard_services = originalRow.standard_services;
+                            rowData.standard_total = originalRow.standard_total;
+                            rowData.fragile_materials = originalRow.fragile_materials;
+                            rowData.fragile_services = originalRow.fragile_services;
+                            rowData.fragile_total = originalRow.fragile_total;
+                            rowData.custom_materials = originalRow.custom_materials;
+                            rowData.custom_services = originalRow.custom_services;
+                            rowData.custom_total = originalRow.custom_total;
+                        }
+                        
+                        // Update the row data and redraw
+                        row.data(rowData).draw();
+                    }
+                    
+                    updateChangeCounter();
+                }
+                } catch (error) {
+                    console.error('Error in undo handler:', error);
+                }
+            });
+            
             $('#priceTable').on('click', 'td.editable', function() {
-                // Skip if store is not editable
+                // Skip if not authenticated
                 if (!isEditable) {
-                    showStatus('This store is read-only. Set editable: true in the YAML file to enable editing.', 'error');
+                    showStatus('You must be logged in to edit prices.', 'error');
                     return;
                 }
                 
@@ -768,7 +1379,15 @@
                 const value = cell.text();
                 const row = priceTable.row(cell.closest('tr')).data();
                 const columnIndex = priceTable.cell(this).index().column;
-                const columnName = priceTable.column(columnIndex).header().textContent.toLowerCase().trim();
+                const header = priceTable.column(columnIndex).header();
+                let columnName = header.textContent.toLowerCase().trim();
+                // If no text content, check for img alt text
+                if (!columnName) {
+                    const img = header.querySelector('img');
+                    if (img) {
+                        columnName = img.alt.toLowerCase().trim();
+                    }
+                }
                 
                 // Create input for editing - safer approach to avoid XSS
                 cell.empty();
@@ -784,6 +1403,45 @@
                 cell.append(input);
                 input.focus();
                 input.select();
+                
+                // Handle keyboard navigation
+                input.on('keydown', function(e) {
+                    if (e.key === 'Tab') {
+                        e.preventDefault();
+                        
+                        // Find next editable cell
+                        const allEditableCells = $('#priceTable td.editable');
+                        const currentIndex = allEditableCells.index(cell);
+                        let nextCell;
+                        
+                        if (e.shiftKey) {
+                            // Shift+Tab goes left
+                            nextCell = allEditableCells.eq(currentIndex - 1);
+                        } else {
+                            // Tab goes right
+                            nextCell = allEditableCells.eq(currentIndex + 1);
+                        }
+                        
+                        // If we found a next cell, trigger blur then click it
+                        if (nextCell.length) {
+                            $(this).blur();
+                            setTimeout(() => {
+                                nextCell.click();
+                            }, 10);
+                        } else {
+                            // No next cell, just blur
+                            $(this).blur();
+                        }
+                    } else if (e.key === 'Enter') {
+                        // Enter just completes the edit
+                        e.preventDefault();
+                        $(this).blur();
+                    } else if (e.key === 'Escape') {
+                        // Escape cancels edit
+                        $(this).val(value); // Restore original value
+                        $(this).blur();
+                    }
+                });
                 
                 // Handle input blur (save value)
                 input.on('blur', function() {
@@ -816,7 +1474,14 @@
                         
                         // Show the undo button for this row
                         const rowElement = cell.closest('tr');
-                        rowElement.find('.undo-btn').addClass('show-undo');
+                        const rowIndex = priceTable.row(rowElement).index();
+                        const rowData = priceTable.row(rowIndex).data();
+                        
+                        // Mark row as having changes in the data
+                        priceTable.row(rowIndex).data(rowData);
+                        
+                        // Force redraw the row to update the undo button
+                        priceTable.row(rowIndex).invalidate().draw(false);
                     }
                     
                     if (pricingMode === 'standard') {
@@ -874,7 +1539,6 @@
                         }
                         
                         if (fieldName) {
-                            console.log("Updating", row.model, fieldName, newValue);
                             changedData[row.model][fieldName] = newValue;
                             
                             // Find this row in the table
@@ -953,121 +1617,205 @@
                 });
             });
             
-            // Undo button handler
-            $('#priceTable').on('click', '.undo-btn', function() {
-                // Skip if store is not editable
-                if (!isEditable) {
-                    showStatus('This store is read-only. Set editable: true in the YAML file to enable editing.', 'error');
-                    return;
-                }
-                
-                const rowElement = $(this).closest('tr');
-                const row = priceTable.row(rowElement).data();
-                const model = row.model;
-                
-                if (changedData[model]) {
-                    delete changedData[model];
-                    changeCount--;
-                    updateChangeCounter();
-                    
-                    // Hide the undo button
-                    $(this).removeClass('show-undo');
-                    
-                    const rowIndex = priceTable.row(rowElement).index();
-                    
-                    // Reload the row data
-                    $.ajax({
-                        url: '/api/store/' + storeId + '/box/' + encodeURIComponent(model),
-                        method: 'GET',
-                        success: function(data) {
-                            // Update the table with original values based on pricing mode
-                            if (pricingMode === 'standard') {
-                                // Standard pricing mode
-                                priceTable.cell(rowIndex, 3).data(parseFloat(data.prices[0]).toFixed(2));
-                                priceTable.cell(rowIndex, 4).data(parseFloat(data.prices[1]).toFixed(2));
-                                priceTable.cell(rowIndex, 5).data(parseFloat(data.prices[2]).toFixed(2));
-                                priceTable.cell(rowIndex, 6).data(parseFloat(data.prices[3]).toFixed(2));
-                            } else {
-                                // Itemized pricing mode
-                                const ip = data['itemized-prices'] || {};
-                                
-                                // Box price (common)
-                                priceTable.cell(rowIndex, 3).data(parseFloat(ip['box-price'] || 0).toFixed(2));
-                                
-                                // Standard level
-                                priceTable.cell(rowIndex, 4).data(parseFloat(ip['standard-materials'] || 0).toFixed(2));
-                                priceTable.cell(rowIndex, 5).data(parseFloat(ip['standard-services'] || 0).toFixed(2));
-                                const standardTotal = (ip['box-price'] || 0) + (ip['standard-materials'] || 0) + (ip['standard-services'] || 0);
-                                priceTable.cell(rowIndex, 6).data(parseFloat(standardTotal).toFixed(2));
-                                
-                                // Fragile level
-                                priceTable.cell(rowIndex, 7).data(parseFloat(ip['fragile-materials'] || 0).toFixed(2));
-                                priceTable.cell(rowIndex, 8).data(parseFloat(ip['fragile-services'] || 0).toFixed(2));
-                                const fragileTotal = (ip['box-price'] || 0) + (ip['fragile-materials'] || 0) + (ip['fragile-services'] || 0);
-                                priceTable.cell(rowIndex, 9).data(parseFloat(fragileTotal).toFixed(2));
-                                
-                                // Custom level
-                                priceTable.cell(rowIndex, 10).data(parseFloat(ip['custom-materials'] || 0).toFixed(2));
-                                priceTable.cell(rowIndex, 11).data(parseFloat(ip['custom-services'] || 0).toFixed(2));
-                                const customTotal = (ip['box-price'] || 0) + (ip['custom-materials'] || 0) + (ip['custom-services'] || 0);
-                                priceTable.cell(rowIndex, 12).data(parseFloat(customTotal).toFixed(2));
-                            }
-                            
-                            showStatus('Reset changes for ' + model, 'success');
-                        },
-                        error: function() {
-                            showStatus('Failed to reset changes for ' + model, 'error');
-                        }
-                    });
-                }
-            });
-            
             // Save changes button handler
             $('#saveChanges').on('click', function() {
-                // Double-check editability before saving
+                // Double-check authentication before saving
                 if (!isEditable) {
-                    showStatus('This store is read-only. Set editable: true in the YAML file to enable editing.', 'error');
+                    showStatus('You must be logged in to edit prices.', 'error');
                     return;
                 }
                 
-                if (changeCount > 0) {
+                const locationChangeCount = Object.keys(changedLocations).length;
+                const totalChangeCount = changeCount + locationChangeCount;
+                
+                if (totalChangeCount > 0) {
                     showStatus('Saving changes...', 'loading');
                     
-                    // Debug log the changes
-                    console.log("Changes to be saved:", JSON.stringify(changedData, null, 2));
+                    // Use the appropriate update function based on pricing mode
+                    const updateFunction = pricingMode === 'standard' 
+                        ? window.api.updateStandardPrices
+                        : window.api.updateItemizedPrices;
                     
-                    // Determine the endpoint based on pricing mode
-                    const endpoint = pricingMode === 'standard' 
-                        ? '/api/store/' + storeId + '/update_prices'
-                        : '/api/store/' + storeId + '/update_itemized_prices';
+                    // Save price changes first
+                    const pricePromise = changeCount > 0 ? 
+                        updateFunction(storeId, changedData, csrfToken) : 
+                        Promise.resolve();
                     
-                    $.ajax({
-                        url: endpoint,
-                        method: 'POST',
-                        contentType: 'application/json',
-                        headers: {
-                            'X-CSRF-Token': csrfToken
-                        },
-                        data: JSON.stringify({
-                            changes: changedData,
-                            csrf_token: csrfToken
-                        }),
-                        success: function() {
+                    // Save location changes
+                    const locationPromise = locationChangeCount > 0 ?
+                        window.api.updateLocations(storeId, changedLocations, csrfToken) :
+                        Promise.resolve();
+                    
+                    Promise.all([pricePromise, locationPromise])
+                        .then(() => {
                             showStatus('All changes saved successfully!', 'success');
                             changedData = {};
                             changeCount = 0;
+                            changedLocations = {};
                             updateChangeCounter();
-                        },
-                        error: function(xhr) {
-                            let detail = '';
-                            if (xhr.responseJSON && xhr.responseJSON.detail) {
-                                detail = xhr.responseJSON.detail;
-                            } else if (xhr.responseText) {
-                                detail = xhr.responseText;
+                            
+                            // Force DataTables to re-render all cells and redraw  
+                            priceTable.rows().invalidate().draw();
+                        })
+                        .catch(error => {
+                            console.error('Error saving changes:', error);
+                            showStatus('Error saving changes: ' + error.message, 'error');
+                        });
+                }
+            });
+            
+            // Print view button handler
+            $('#printView').on('click', function() {
+                // Just trigger the browser's print dialog for this page
+                window.print();
+            });
+            
+            // Initialize floorplan status in the window object so it's accessible globally
+            window.hasFloorplan = false;
+            
+            // Check if store has a floorplan
+            fetch(`/api/store/${storeId}/floorplan`)
+                .then(response => {
+                    window.hasFloorplan = response.ok;
+                    console.log("Store has floorplan:", window.hasFloorplan);
+                    
+                    // Refresh the table to update the location buttons based on floorplan availability
+                    if (priceTable) {
+                        priceTable.rows().invalidate().draw();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking floorplan:', error);
+                    window.hasFloorplan = false;
+                });
+            
+            // Location button handlers
+            $(document).on('click', '.view-location', function(e) {
+                e.preventDefault();
+                if ($(this).hasClass('disabled')) return;
+                
+                const model = $(this).data('model');
+                const row = priceTable.row($(this).closest('tr')).data();
+                
+                import('/components/location-modal.js').then(module => {
+                    module.LocationModal.show({
+                        mode: 'view',
+                        storeId: storeId,
+                        boxModel: model,
+                        currentLocation: row.location
+                    });
+                }).catch(error => {
+                    console.error('Error loading location modal:', error);
+                    showStatus('Failed to load location viewer', 'error');
+                });
+            });
+            
+            $(document).on('click', '.edit-location', function(e) {
+                e.preventDefault();
+                
+                // Check if button is disabled or no floorplan is available
+                if ($(this).hasClass('disabled') || $(this).attr('data-no-floorplan') === 'true') {
+                    if (!window.hasFloorplan) {
+                        showStatus('No floorplan available for this store. Please upload a floorplan image first.', 'error');
+                    }
+                    return;
+                }
+                
+                const model = $(this).data('model');
+                const row = priceTable.row($(this).closest('tr')).data();
+                const $tr = $(this).closest('tr');
+                
+                import('/components/location-modal.js').then(module => {
+                    module.LocationModal.show({
+                        mode: 'edit',
+                        storeId: storeId,
+                        boxModel: model,
+                        currentLocation: row.location,
+                        onSave: (location, alreadySaved) => {
+                            // Only track as a change if not already saved to API
+                            if (!alreadySaved) {
+                                // Update the location data
+                                if (!changedLocations[model]) {
+                                    changedLocations[model] = {};
+                                }
+                                changedLocations[model] = location;
+                                
+                                // Enable save button
+                                $('#saveChanges').prop('disabled', false);
+                                updateLocationChangeCounter();
                             }
-                            showStatus('Error saving changes: ' + (xhr.statusText || 'Unknown error') + ': ' + detail, 'error');
+                            
+                            // Always update the row data to reflect changes
+                            row.location = location;
+                            priceTable.row($tr).data(row).draw();
+                            
+                            // Show a status message
+                            if (alreadySaved) {
+                                showStatus('Location saved successfully!', 'success');
+                            }
+                        },
+                        onClear: (alreadySaved) => {
+                            // Only track as a change if not already saved to API
+                            if (!alreadySaved) {
+                                // Clear the location
+                                if (!changedLocations[model]) {
+                                    changedLocations[model] = {};
+                                }
+                                changedLocations[model] = null;
+                                
+                                // Enable save button
+                                $('#saveChanges').prop('disabled', false);
+                                updateLocationChangeCounter();
+                            }
+                            
+                            // Always update the row data to reflect changes
+                            row.location = '???';
+                            priceTable.row($tr).data(row).draw();
+                            
+                            // Show a status message
+                            if (alreadySaved) {
+                                showStatus('Location removed successfully!', 'success');
+                            }
                         }
                     });
+                }).catch(error => {
+                    console.error('Error loading location modal:', error);
+                    showStatus('Failed to load location editor', 'error');
+                });
+            });
+            
+            // Add tooltip for notes icon
+            $(document).on('mouseenter', '.notes-location', function() {
+                const content = $(this).data('content');
+                if (!content) return;
+                
+                // Create tooltip element
+                const tooltip = $('<div class="location-note-tooltip"></div>')
+                    .text(content)
+                    .css({
+                        position: 'absolute',
+                        top: $(this).offset().top + $(this).height() + 5,
+                        left: $(this).offset().left,
+                        background: 'white',
+                        border: '1px solid #ccc',
+                        padding: '5px 10px',
+                        borderRadius: '4px',
+                        zIndex: 1000,
+                        boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+                        maxWidth: '250px',
+                        wordWrap: 'break-word'
+                    });
+                
+                $('body').append(tooltip);
+                
+                $(this).data('tooltip', tooltip);
+            });
+            
+            $(document).on('mouseleave', '.notes-location', function() {
+                const tooltip = $(this).data('tooltip');
+                if (tooltip) {
+                    tooltip.remove();
+                    $(this).removeData('tooltip');
                 }
             });
         }

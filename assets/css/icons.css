@@ -1,0 +1,27 @@
+/* 
+ * Direct icon styles that use individual PNGs for more control
+ */
+
+/* Basic icon styling */
+th div.icon {
+  width: 24px !important;
+  height: 24px !important;
+  display: block !important;
+  margin: 0 auto !important;
+  background-size: contain !important;
+  background-position: center center !important;
+  background-repeat: no-repeat !important;
+}
+
+/* Each icon needs its own image reference */
+th div.icon-layers {
+  background-image: url('../icons/layers3.png') !important;
+}
+
+th div.icon-service {
+  background-image: url('../icons/service3.png') !important;
+}
+
+th div.icon-total {
+  background-image: url('../icons/total3.png') !important;
+}

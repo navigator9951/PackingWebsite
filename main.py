@@ -1,15 +1,35 @@
-from fastapi import FastAPI, HTTPException, Path, Body, Request
-from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
-from pydantic import BaseModel
-from typing import Dict, List, Union, Optional, Any
-import yaml
+import json
 import os
 import re
-import json
+from typing import Any, Dict, List, Optional, Union
+
+import yaml
+from fastapi import Body, FastAPI, HTTPException, Path, Request, File, UploadFile, Depends
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from pydantic import BaseModel
+import aiofiles
+import shutil
+
+from lib.auth_middleware import require_store_auth, get_current_store
+from lib.auth_manager import (
+    init_db, verify_store_password, create_session, 
+    create_store_auth, verify_session, delete_session,
+    hasAuth as store_has_auth
+)
+
+# Initialize the authentication database
+init_db()
 
 app = FastAPI()
 
-# Define static asset routes first to prevent conflicts with dynamic routes
+# Mount static directories
+app.mount("/assets", StaticFiles(directory="assets"), name="assets")
+app.mount("/lib", StaticFiles(directory="lib"), name="lib")
+app.mount("/components", StaticFiles(directory="components"), name="components")
+
+# Define static asset routes for compatibility with existing code
 @app.get("/index.js", response_class=HTMLResponse)
 async def base_script():
     # Add cache-busting headers
@@ -23,18 +43,51 @@ async def base_script():
 
 @app.get("/pricing.js", response_class=HTMLResponse)
 async def pricing_script():
-    # Add cache-busting headers
+    # Serve pricing module from lib/pricing.js
     headers = {
         "Cache-Control": "no-cache, no-store, must-revalidate",
         "Pragma": "no-cache",
         "Expires": "0"
     }
-    with open("pricing.js", "r") as f:
+    with open("lib/pricing.js", "r") as f:
+        return HTMLResponse(f.read(), media_type="text/javascript", headers=headers)
+
+@app.get("/packing.js", response_class=HTMLResponse)
+async def packing_script():
+    # Serve packing module from lib/packing.js
+    headers = {
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0"
+    }
+    with open("lib/packing.js", "r") as f:
+        return HTMLResponse(f.read(), media_type="text/javascript", headers=headers)
+
+@app.get("/api.js", response_class=HTMLResponse)
+async def api_script():
+    # Serve api module from lib/api.js
+    headers = {
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0"
+    }
+    with open("lib/api.js", "r") as f:
+        return HTMLResponse(f.read(), media_type="text/javascript", headers=headers)
+
+@app.get("/location.js", response_class=HTMLResponse)
+async def location_script():
+    # Serve location module from lib/location.js
+    headers = {
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0"
+    }
+    with open("lib/location.js", "r") as f:
         return HTMLResponse(f.read(), media_type="text/javascript", headers=headers)
 
 @app.get("/favicon.ico", response_class=FileResponse)
 async def favicon():
-    return FileResponse("favicon.ico")
+    return FileResponse("assets/favicon.ico")
 
 # Define dynamic routes after static routes
 @app.get("/", response_class=HTMLResponse)
@@ -42,6 +95,19 @@ async def root():
     # Default route will return 404
     raise HTTPException(status_code=404, detail="Not found")
 
+# Login page route
+@app.get("/{store_id}/login", response_class=HTMLResponse)
+async def login_page(store_id: str = Path(..., regex=r"^\d{1,4}$")):
+    # Check if the store's YAML file exists
+    yaml_file = f"stores/store{store_id}.yml"
+    if not os.path.exists(yaml_file):
+        raise HTTPException(status_code=404, detail=f"Store configuration not found for store {store_id}")
+        
+    # Load the login HTML
+    with open("login.html", "r") as f:
+        return HTMLResponse(f.read())
+
+# Catch-all pattern should be last to avoid conflicts
 @app.get("/{store_id}", response_class=HTMLResponse)
 async def store_page(store_id: str = Path(..., regex=r"^\d{1,4}$")):
     with open("index.html", "r") as f:
@@ -50,7 +116,7 @@ async def store_page(store_id: str = Path(..., regex=r"^\d{1,4}$")):
 @app.get("/{store_id}/price_editor", response_class=HTMLResponse)
 async def price_editor(store_id: str = Path(..., regex=r"^\d{1,4}$")):
     # Check if the store's YAML file exists
-    yaml_file = f"store{store_id}.yml"
+    yaml_file = f"stores/store{store_id}.yml"
     if not os.path.exists(yaml_file):
         raise HTTPException(status_code=404, detail=f"Store configuration not found for store {store_id}")
 
@@ -70,6 +136,28 @@ async def price_editor(store_id: str = Path(..., regex=r"^\d{1,4}$")):
 
     return HTMLResponse(content=html_content, headers=headers)
 
+# New route structure for admin pages - all protected by auth
+@app.get("/{store_id}/prices", response_class=HTMLResponse)
+async def prices_page(
+    store_id: str = Path(..., regex=r"^\d{1,4}$")
+):
+    # Forward to existing price_editor for now
+    # Eventually this will point to admin/prices/index.html
+    return await price_editor(store_id)
+
+@app.get("/{store_id}/floorplan", response_class=HTMLResponse)
+async def floorplan_page(
+    store_id: str = Path(..., regex=r"^\d{1,4}$")
+):
+    # Check if the store's YAML file exists
+    yaml_file = f"stores/store{store_id}.yml"
+    if not os.path.exists(yaml_file):
+        raise HTTPException(status_code=404, detail=f"Store configuration not found for store {store_id}")
+
+    # Load the floorplan HTML
+    with open("floorplan.html", "r") as f:
+        return HTMLResponse(f.read())
+
 @app.get("/api/store/{store_id}/pricing_mode", response_class=JSONResponse)
 async def get_pricing_mode(store_id: str = Path(..., regex=r"^\d{1,4}$")):
     data = load_store_yaml(store_id)
@@ -78,7 +166,7 @@ async def get_pricing_mode(store_id: str = Path(..., regex=r"^\d{1,4}$")):
 
 @app.get("/api/store/{store_id}/boxes", response_class=JSONResponse)
 async def get_boxes(store_id: str = Path(..., regex=r"^\d{1,4}$")):
-    yaml_file = f"store{store_id}.yml"
+    yaml_file = f"stores/store{store_id}.yml"
 
     if not os.path.exists(yaml_file):
         error_msg = f"Store configuration file not found at {yaml_file}"
@@ -139,8 +227,31 @@ async def get_boxes(store_id: str = Path(..., regex=r"^\d{1,4}$")):
             raise HTTPException(status_code=500, detail=f"Box at index {i} has invalid 'supplier' (must be a string)")
         if "model" in box and not isinstance(box["model"], str):
             raise HTTPException(status_code=500, detail=f"Box at index {i} has invalid 'model' (must be a string)")
-        if "location" in box and not isinstance(box["location"], str):
-            raise HTTPException(status_code=500, detail=f"Box at index {i} has invalid 'location' (must be a string)")
+        # Location must be a dictionary, string, or empty/missing
+        if "location" in box:
+            # Handle None or empty value by converting to empty dict
+            if box["location"] is None:
+                box["location"] = {}
+                
+            # Check type
+            if not isinstance(box["location"], (str, dict)):
+                raise HTTPException(status_code=500, detail=f"Box at index {i} has invalid 'location' (must be a dictionary or string)")
+                
+            # If location is a dict, validate its structure
+            if isinstance(box["location"], dict):
+                location = box["location"]
+                
+                # If coords are present, validate them
+                if "coords" in location and location["coords"] is not None:
+                    coords = location["coords"]
+                    if not isinstance(coords, list) or len(coords) != 2:
+                        raise HTTPException(status_code=500, detail=f"Box at index {i} has invalid 'location.coords' (must be a list of 2 numbers)")
+                    if not all(isinstance(coord, (int, float)) for coord in coords):
+                        raise HTTPException(status_code=500, detail=f"Box at index {i} has invalid coordinate values (must be numbers)")
+                        
+                # We don't use labels anymore, but if present should be a string
+                if "label" in location and location["label"] is not None and not isinstance(location["label"], str):
+                    raise HTTPException(status_code=500, detail=f"Box at index {i} has invalid 'location.label' (must be a string)")
         if "alternate_depths" in box:
             if not isinstance(box["alternate_depths"], list):
                 raise HTTPException(status_code=500, detail=f"Box at index {i} has invalid 'alternate_depths' (must be a list of numbers)")
@@ -153,7 +264,7 @@ async def get_boxes(store_id: str = Path(..., regex=r"^\d{1,4}$")):
 
 # Helper function to load and validate YAML
 def load_store_yaml(store_id: str):
-    yaml_file = f"store{store_id}.yml"
+    yaml_file = f"stores/store{store_id}.yml"
 
     if not os.path.exists(yaml_file):
         error_msg = f"Store configuration file not found at {yaml_file}"
@@ -173,15 +284,12 @@ def load_store_yaml(store_id: str):
         print(f"Error: {error_msg}")
         raise HTTPException(status_code=500, detail=error_msg)
 
-    # Set default editable flag if not present
-    if "editable" not in boxes_data:
-        boxes_data["editable"] = False
 
     return boxes_data
 
 # Helper function to save YAML data
 def save_store_yaml(store_id: str, data: dict):
-    yaml_file = f"store{store_id}.yml"
+    yaml_file = f"stores/store{store_id}.yml"
 
     try:
         # Custom YAML writing to maintain the desired format
@@ -190,10 +298,6 @@ def save_store_yaml(store_id: str, data: dict):
             if "pricing-mode" in data:
                 f.write(f"pricing-mode: {data['pricing-mode']}\n")
             
-            # Write editable flag at the top level
-            editable = data.get("editable", False)
-            f.write(f"editable: {str(editable).lower()}\n")
-
             f.write("boxes:\n")
 
             # Determine pricing mode
@@ -263,16 +367,27 @@ def save_store_yaml(store_id: str, data: dict):
                     # Skip location field for store1 if not present to maintain legacy format
                     pass
                 else:
-                    # Sanitize location to prevent YAML injection
-                    location = box.get('location', '')
-                    if location and isinstance(location, str):
-                        # Escape quotes and sanitize
-                        location = location.replace('"', '\\"').replace('\n', ' ').replace(':', '_')
-                        # Limit length
-                        location = location[:50]
-                    else:
-                        location = ""
-                    f.write(f"    location: \"{location}\"\n")
+                    location = box.get('location', {})
+                    
+                    # Handle empty or None locations - skip entirely
+                    if location is None or (isinstance(location, dict) and not location):
+                        # Skip empty locations completely
+                        pass
+                    # Handle dictionary with coords
+                    elif isinstance(location, dict) and 'coords' in location and location['coords']:
+                        # Start location section
+                        f.write(f"    location:\n")
+                        
+                        coords = location['coords']
+                        # Ensure coords are floats and valid
+                        if isinstance(coords, list) and len(coords) == 2:
+                            x = float(coords[0]) if isinstance(coords[0], (int, float)) else 0
+                            y = float(coords[1]) if isinstance(coords[1], (int, float)) else 0
+                            f.write(f"      coords: [{x}, {y}]\n")
+                    # Handle legacy string locations (skip completely)
+                    elif isinstance(location, str) and location.strip():
+                        # Skip legacy string locations
+                        pass
 
                 f.write("\n")
 
@@ -432,7 +547,8 @@ class ItemizedPriceUpdateRequest(BaseModel):
 @app.post("/api/store/{store_id}/update_prices", response_class=JSONResponse)
 async def update_prices(
     store_id: str = Path(..., regex=r"^\d{1,4}$"),
-    update_data: PriceUpdateRequest = Body(...)):
+    update_data: PriceUpdateRequest = Body(...),
+    auth_store_id: str = Depends(get_current_store)):
 
     # Extract data from the request
     changes = update_data.changes
@@ -449,9 +565,7 @@ async def update_prices(
     if pricing_mode != "standard":
         raise HTTPException(status_code=400, detail="This endpoint is for standard pricing mode only. Use /update_itemized_prices for itemized pricing.")
 
-    # Check if the store is editable
-    if not data.get("editable", False):
-        raise HTTPException(status_code=403, detail="This store is not editable. Set 'editable: true' in the store YAML file to enable editing.")
+    # Authentication check is handled by the auth_store_id dependency
 
     updated_count = 0
 
@@ -477,7 +591,7 @@ async def update_prices(
             if "model" not in box:
                 box["model"] = box_model
 
-    # Save the updated YAML file while preserving the editable flag
+    # Save the updated YAML file
     save_store_yaml(store_id, data)
 
     return {"message": f"Updated {updated_count} prices successfully"}
@@ -486,7 +600,8 @@ async def update_prices(
 @app.post("/api/store/{store_id}/update_itemized_prices", response_class=JSONResponse)
 async def update_itemized_prices(
     store_id: str = Path(..., regex=r"^\d{1,4}$"),
-    update_data: ItemizedPriceUpdateRequest = Body(...)):
+    update_data: ItemizedPriceUpdateRequest = Body(...),
+    auth_store_id: str = Depends(get_current_store)):
 
     # Extract data from the request
     changes = update_data.changes
@@ -503,9 +618,7 @@ async def update_itemized_prices(
     if pricing_mode != "itemized":
         raise HTTPException(status_code=400, detail="This endpoint is for itemized pricing mode only. Use /update_prices for standard pricing.")
 
-    # Check if the store is editable
-    if not data.get("editable", False):
-        raise HTTPException(status_code=403, detail="This store is not editable. Set 'editable: true' in the store YAML file to enable editing.")
+    # Authentication check is handled by the auth_store_id dependency
 
     updated_count = 0
 
@@ -543,7 +656,7 @@ async def update_itemized_prices(
             if "model" not in box:
                 box["model"] = box_model
 
-    # Save the updated YAML file while preserving the editable flag
+    # Save the updated YAML file
     save_store_yaml(store_id, data)
 
     return {"message": f"Updated {updated_count} itemized prices successfully"}
@@ -551,13 +664,261 @@ async def update_itemized_prices(
 class Comment(BaseModel):
     text: str
 
-# Check if a store is editable
-@app.get("/api/store/{store_id}/is_editable", response_class=JSONResponse)
-async def is_store_editable(store_id: str = Path(..., regex=r"^\d{1,4}$")):
-    data = load_store_yaml(store_id)
-    return {"editable": data.get("editable", False)}
-
 @app.post("/comments")
 async def save_comment(comment: Comment):
     with open("comments.txt", "a") as f:
         f.write(comment.text + "\n")
+
+# Authentication API Models
+class LoginRequest(BaseModel):
+    password: str
+    remember_me: bool = False
+
+class TokenResponse(BaseModel):
+    token: str
+    
+# Authentication API endpoints
+@app.post("/api/store/{store_id}/login", response_model=TokenResponse)
+async def login(
+    store_id: str = Path(..., regex=r"^\d{1,4}$"),
+    login_data: LoginRequest = Body(...)
+):
+    # Check if store exists
+    yaml_file = f"stores/store{store_id}.yml"
+    if not os.path.exists(yaml_file):
+        raise HTTPException(status_code=404, detail=f"Store not found: {store_id}")
+    
+    # Check if store has authentication enabled
+    if not store_has_auth(store_id):
+        raise HTTPException(status_code=400, detail=f"Authentication not enabled for store {store_id}")
+    
+    # Verify password
+    if not verify_store_password(store_id, login_data.password):
+        raise HTTPException(status_code=401, detail="Invalid password")
+    
+    # Create session (token)
+    token_duration = 30 * 24 if login_data.remember_me else 24  # 30 days or 24 hours
+    token = create_session(store_id, hours=token_duration)
+    
+    return {"token": token}
+
+@app.get("/api/store/{store_id}/verify")
+async def verify_token(
+    store_id: str = Path(..., regex=r"^\d{1,4}$"),
+    auth_store_id: str = Depends(get_current_store)
+):
+    # get_current_store dependency will raise appropriate exceptions
+    # We only need to check the store_id matches
+    if auth_store_id != store_id:
+        raise HTTPException(status_code=403, detail=f"Token is not valid for store {store_id}")
+    
+    return {"verified": True, "store_id": store_id}
+
+@app.get("/api/store/{store_id}/has-auth")
+async def check_has_auth(store_id: str = Path(..., regex=r"^\d{1,4}$")):
+    # Check if the store's YAML file exists
+    yaml_file = f"stores/store{store_id}.yml"
+    if not os.path.exists(yaml_file):
+        raise HTTPException(status_code=404, detail=f"Store not found: {store_id}")
+    
+    # Check if auth is enabled
+    has_auth = store_has_auth(store_id)
+    
+    return {"hasAuth": has_auth}
+
+@app.post("/api/store/{store_id}/logout")
+async def logout(
+    store_id: str = Path(..., regex=r"^\d{1,4}$"),
+    token: str = Depends(get_current_store)
+):
+    # Delete the session token
+    delete_session(token)
+    
+    return {"message": "Logged out successfully"}
+
+# Floorplan endpoints
+@app.get("/api/store/{store_id}/floorplan", response_class=FileResponse)
+async def get_floorplan(store_id: str = Path(..., regex=r"^\d{1,4}$")):
+    # Check for existing floorplan files in expected formats
+    floorplan_dir = "assets/floorplans"
+    extensions = ['.png', '.jpg', '.jpeg', '.svg']
+    
+    for ext in extensions:
+        # Check for simplified naming convention
+        patterns = [
+            f"store{store_id}_floor{ext}",
+            f"store{store_id}_floor1{ext}",  # Legacy support
+            f"store{store_id}{ext}"          # Legacy support
+        ]
+        
+        for pattern in patterns:
+            file_path = os.path.join(floorplan_dir, pattern)
+            if os.path.exists(file_path):
+                return FileResponse(
+                    file_path,
+                    media_type=f"image/{ext[1:]}" if ext != '.svg' else "image/svg+xml",
+                    headers={"Cache-Control": "max-age=3600"}
+                )
+    
+    # No floorplan found
+    raise HTTPException(status_code=404, detail=f"No floorplan found for store {store_id}")
+
+@app.post("/api/store/{store_id}/floorplan")
+async def upload_floorplan(
+    store_id: str = Path(..., regex=r"^\d{1,4}$"),
+    file: UploadFile = File(...),
+    auth_store_id: str = Depends(get_current_store)
+):
+    # Validate file type
+    allowed_types = ["image/png", "image/jpeg", "image/jpg", "image/svg+xml"]
+    if file.content_type not in allowed_types:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file type. Allowed types: {', '.join(allowed_types)}"
+        )
+    
+    # Check file size (5MB limit)
+    MAX_SIZE = 5 * 1024 * 1024  # 5MB
+    contents = await file.read()
+    if len(contents) > MAX_SIZE:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File too large. Maximum size: 5MB, uploaded: {len(contents) / 1024 / 1024:.2f}MB"
+        )
+    
+    # Determine file extension
+    extension = ""
+    if file.content_type == "image/png":
+        extension = ".png"
+    elif file.content_type in ["image/jpeg", "image/jpg"]:
+        extension = ".jpg"
+    elif file.content_type == "image/svg+xml":
+        extension = ".svg"
+    
+    # Remove any existing floorplans for this store
+    floorplan_dir = "assets/floorplans"
+    existing_files = os.listdir(floorplan_dir)
+    for existing_file in existing_files:
+        if existing_file.startswith(f"store{store_id}"):
+            os.remove(os.path.join(floorplan_dir, existing_file))
+    
+    # Save the new floorplan with simplified naming
+    filename = f"store{store_id}_floor{extension}"
+    file_path = os.path.join(floorplan_dir, filename)
+    
+    # Save file asynchronously
+    async with aiofiles.open(file_path, 'wb') as f:
+        await f.write(contents)
+    
+    # Clear all location coordinates for this store
+    data = load_store_yaml(store_id)
+    locations_cleared = 0
+    
+    for box in data["boxes"]:
+        if "location" in box:
+            # Remove location completely instead of setting to empty dict
+            del box["location"]
+            locations_cleared += 1
+    
+    # Save the updated YAML if any locations were cleared
+    if locations_cleared > 0:
+        save_store_yaml(store_id, data)
+    
+    return {
+        "message": f"Floorplan uploaded successfully for store {store_id}",
+        "filename": filename,
+        "size": len(contents),
+        "content_type": file.content_type,
+        "locations_cleared": locations_cleared
+    }
+
+# Get all box locations for mapping
+@app.get("/api/store/{store_id}/box-locations", response_class=JSONResponse)
+async def get_box_locations(store_id: str = Path(..., regex=r"^\d{1,4}$")):
+    data = load_store_yaml(store_id)
+    
+    locations = []
+    for box in data["boxes"]:
+        model = box.get("model", f"Unknown-{len(box['dimensions'])}-{box['dimensions'][0]}-{box['dimensions'][1]}-{box['dimensions'][2]}")
+        
+        location_data = {
+            "model": model,
+            "dimensions": box["dimensions"],
+            "type": box.get("type", "NormalBox")
+        }
+        
+        # Get location data
+        if "location" in box and isinstance(box["location"], dict) and "coords" in box["location"] and box["location"]["coords"]:
+            # Standard dictionary format with valid coords
+            location_data["coords"] = box["location"]["coords"]
+            # We're not using labels anymore, but maintain API compatibility with empty string
+            location_data["label"] = ""
+        elif "location" in box and isinstance(box["location"], str) and box["location"].strip():
+            # For backwards compatibility, but we'll return empty label
+            location_data["label"] = ""
+            location_data["coords"] = None
+        else:
+            # No location, empty location or invalid location
+            location_data["label"] = ""
+            location_data["coords"] = None
+            
+        locations.append(location_data)
+    
+    return locations
+
+# Update box locations (bulk)
+class LocationUpdateRequest(BaseModel):
+    changes: Dict[str, Union[Dict[str, Any], None]]
+    csrf_token: str
+
+@app.post("/api/store/{store_id}/update-locations", response_class=JSONResponse)
+async def update_locations(
+    store_id: str = Path(..., regex=r"^\d{1,4}$"),
+    update_data: LocationUpdateRequest = Body(...),
+    auth_store_id: str = Depends(get_current_store)):
+    
+    # Validate CSRF token
+    if not update_data.csrf_token or len(update_data.csrf_token) < 10:
+        raise HTTPException(status_code=403, detail="Invalid CSRF token")
+    
+    data = load_store_yaml(store_id)
+    
+    # Authentication check is handled by the auth_store_id dependency
+    
+    updated_count = 0
+    
+    # Update locations for each box in the changes dict
+    for box in data["boxes"]:
+        box_model = box.get("model", f"Unknown-{len(box['dimensions'])}-{box['dimensions'][0]}-{box['dimensions'][1]}-{box['dimensions'][2]}")
+        
+        if box_model in update_data.changes:
+            location_change = update_data.changes[box_model]
+            
+            if location_change is None:
+                # Clear location by removing it completely
+                if "location" in box:
+                    del box["location"]
+            else:
+                # Make sure changes are in dictionary format
+                if isinstance(location_change, dict):
+                    # Standard dictionary format
+                    if "coords" not in location_change or not location_change["coords"]:
+                        # No coordinates case - remove location
+                        if "location" in box:
+                            del box["location"]
+                    else:
+                        # Full location with coordinates
+                        box["location"] = {
+                            "coords": location_change["coords"]
+                        }
+                else:
+                    # If non-dictionary was sent (shouldn't happen), remove location
+                    if "location" in box:
+                        del box["location"]
+            
+            updated_count += 1
+    
+    # Save the updated YAML file
+    save_store_yaml(store_id, data)
+    
+    return {"message": f"Updated {updated_count} locations successfully"}
